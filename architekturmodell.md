@@ -1,3 +1,4 @@
+´´´mermaid
 flowchart LR
 
 %% ----------------------------
@@ -144,3 +145,4 @@ JsonStore --> Config
 SMTP --> Config
 SMS --> Config
 PUSH --> Config
+´´´
