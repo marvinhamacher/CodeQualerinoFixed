@@ -9,11 +9,11 @@
 
 
 
-# 1 Verletzung SOLID, Testbarkeit, Architektur und Modellierung im Überblick
+# 1.1 Verletzung SOLID, Testbarkeit, Architektur und Modellierung im Überblick
 
 
 ---
-## 1.1 Schwere Verletzungen
+## 1.1.1 Schwere Verletzungen
 | Kategorie               | Datei              | Klasse               | Grund                          | Beschreibung                                                                          | Wartbarkeitseinschränkung                        | Severity |
 | ----------------------- | ------------------ | -------------------- | ------------------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------ | ------ |
 | Architektur / Schichten | `task_manager.py`  | `TaskManager`        | Direkte DB-Zugriffe            | Verletzt Schichtenarchitektur, Geschäftslogik ist an Infrastruktur gekoppelt.         | Sehr schlechte Testbarkeit und hohe Kopplung     | High  |
@@ -28,7 +28,7 @@
 | Architektur             | `task_manager.py`  | `TaskManager`        | Fat Controller                 | Enthält zu viel Geschäftslogik.                                                       | Geringe Wartbarkeit                              | High |
 
 ---
-## 1.2 Mittelschwerwiegende Verletzungen
+## 1.1.2 Mittelschwerwiegende Verletzungen
 
 
 | Kategorie   | Datei                 | Klasse                      | Grund                                      | Beschreibung                                             | Wartbarkeitseinschränkung  | Severity |
@@ -46,7 +46,7 @@
 | TDD         | mehrere               | -                           | Business-Logik mit Infrastruktur vermischt | Schlechte Testbarkeit                                    | Wartungsaufwand steigt     | Medium |
 
 ---
-## 1.3 Leichte Verletzungen
+## 1.1.3 Leichte Verletzungen
 
 | Kategorie | Datei      | Klasse | Grund                   | Beschreibung                        | Wartbarkeitseinschränkung | Severity |
 | --------- | ---------- | ------ | ----------------------- | ----------------------------------- | ------------------------- | ----- |
@@ -54,7 +54,7 @@
 | SOLID     | mehrere    | -      | Kleinere SOLID-Verstöße | Verbesserungspotenzial              | Begrenzter Einfluss       | Low |
 
 ---
-## 1.4 Architektonische Empfehlungen
+## 1.1.4 Architektonische Empfehlungen
 
 | Empfehlung        | Datei/Klasse                | Nutzen                                               | Priorität    |
 | ----------------- | --------------------------- | ---------------------------------------------------- | ------------ |
@@ -71,10 +71,8 @@
 
 
 
-# 2.1 5 Solid Verletzungen im Detail:
-## SOLID-Prinzipien
-
-### Single Responsibility Principle bei `task_manager.py` verletzt
+## 1.2 Fünf SOLID Verletzungen im Detail:
+### 1.2.1 Single Responsibility Principle bei `task_manager.py` verletzt
 
 - **Grund:** Eine Klasse hat zu viele Verantwortlichkeiten gegenüber anderen Klassen.
 - **Wartbarkeit:** Änderungen an einer Verantwortlichkeit können unbeabsichtigt Auswirkungen auf andere Funktionen haben. Die Klasse wird dadurch schwerer verständlich, schwieriger zu testen und aufwendiger zu erweitern.
@@ -82,7 +80,7 @@
 
 ---
 
-### Single Responsibility Principle bei `database.py` verletzt
+### 1.2.2 Single Responsibility Principle bei `database.py` verletzt
 
 - **Grund:** `database.py` hat mehrere Verantwortlichkeiten: Laden und Speichern sowohl von Usern als auch von Tasks.
 - **Wartbarkeit:** Änderungen an der Benutzerverwaltung können unbeabsichtigt die Task-Verwaltung beeinflussen und umgekehrt. Die Klasse wächst mit jeder neuen Funktion weiter an und wird zunehmend schwer wartbar.
@@ -90,7 +88,7 @@
 
 ---
 
-### Open/Closed Principle bei `report_generator.py` verletzt
+### 1.2.3 Open/Closed Principle bei `report_generator.py` verletzt
 
 - **Grund:** Für neue Berichtsarten muss die Klasse geändert werden.
 - **Wartbarkeit:** Jede Erweiterung erfordert Änderungen am bestehenden Code. Dadurch steigt das Risiko, bereits funktionierende Berichte unbeabsichtigt zu beeinflussen oder Fehler einzuführen.
@@ -98,7 +96,7 @@
 
 ---
 
-### Liskov Substitution Principle bei `user_types.py` verletzt
+### 1.2.3 Liskov Substitution Principle bei `user_types.py` verletzt
 
 - **Grund:** Unterklassen sind nicht immer kompatibel mit der Basisklasse.
 - **Wartbarkeit:** Entwickler können sich nicht darauf verlassen, dass Unterklassen überall dort eingesetzt werden können, wo die Basisklasse erwartet wird. Das erschwert die Wiederverwendbarkeit und erhöht den Testaufwand.
@@ -106,7 +104,7 @@
 
 ---
 
-### Interface Segregation Principle und Single Responsibility Principle bei `email_service.py` verletzt
+###  1.2.4 Interface Segregation Principle und Single Responsibility Principle bei `email_service.py` verletzt
 
 #### Interface Segregation Principle (ISP)
 
@@ -124,10 +122,39 @@
 
 ---
 
-### Dependency Inversion Principle bei `task_manager.py` verletzt
+###  1.2.5 Dependency Inversion Principle bei `task_manager.py` verletzt
 
 - **Grund:** High-Level-Module hängen von Low-Level-Modulen ab. `TaskManager` initialisiert die Klassen `Database` und `NotificationCenter` direkt und bekommt sie nicht durch eine Abstraktion bereitgestellt.
 
 - **Wartbarkeit:** Änderungen an `Database` oder `NotificationCenter` können direkte Anpassungen am `TaskManager` erforderlich machen. Außerdem wird das Testen erschwert, da Mock-Objekte oder alternative Implementierungen nicht einfach eingesetzt werden können.
 
 - **Severity:** **High**, da die hohe Kopplung die Erweiterbarkeit und Testbarkeit der zentralen Geschäftslogik erheblich einschränkt.
+
+# 3 Refactoring
+
+## 3.1 Behebung der 5 SOLID - Verletzung
+
+Oben wurden sich 5 SOLID - Verletzungen im Detail angesehen.
+Folgend werden 5 Verletzungen mit Sourcecode behoben. 
+Im Abteil 3.2 lassen sich die ADRs für das Refactoring finden.
+
+### 3.1.1  Single Responsibility Principle bei `task_manager.py`
+`task_manager.py` hat aktuell Methoden, die nicht nur für das Verwalten von Aufgaben wichtig sind. 
+Beispielsweise besitzt die Datei die Methode set_reminder was zwar 
+
+## 3.2 Einsatz von mehreren Mustern (3)
+
+
+## 3.3 ADRs für Refactoring anhand SOLID-korrektur und Patterns
+
+
+## 3.4 Neue Features (3)
+
+
+
+
+
+
+
+
+
