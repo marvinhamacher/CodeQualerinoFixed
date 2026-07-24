@@ -140,7 +140,259 @@ Im Abteil 3.2 lassen sich die ADRs für das Refactoring finden.
 
 ### 3.1.1  Single Responsibility Principle bei `task_manager.py`
 `task_manager.py` hat aktuell Methoden, die nicht nur für das Verwalten von Aufgaben wichtig sind. 
-Beispielsweise besitzt die Datei die Methode set_reminder was zwar 
+Beispielsweise besitzt die Datei die Methode set_reminder und find_overdue welche die Logik zum Ermitteln überfälliger Aufgaben sowie das Versenden von Erinnerungen übernehmen. 
+Diese Verantwortlichkeiten gehören jedoch nicht zur eigentlichen Aufgabenverwaltung.
+Auch die Methode format_task kann ausgelagert werden da sie keine CRUD-relevante Aufgabe übernimmt und nur von der Methode Main aufgerufen wird. 
+
+
+## Vorher 
+
+# SCHICHT: Infrastruktur — Persistenz
+
+```python
+import json
+import os
+from logger import log, log_error
+from config import DB_FILE, USER_FILE
+
+
+class Database:
+    def __init__(self):
+        self.d = {}
+        self.u = {}
+        os.makedirs(os.path.dirname(DB_FILE), exist_ok=True)
+        self.load()
+
+    def load(self):
+        if os.path.exists(DB_FILE):
+            f = open(DB_FILE, "r")
+            try:
+                self.d = json.loads(f.read())
+            except:
+                log_error("Konnte tasks.json nicht laden")
+                self.d = {}
+            f.close()
+        else:
+            self.d = {}
+
+        if os.path.exists(USER_FILE):
+            f = open(USER_FILE, "r")
+            try:
+                self.u = json.loads(f.read())
+            except:
+                log_error("Konnte users.json nicht laden")
+                self.u = {}
+            f.close()
+        else:
+            self.u = {}
+
+    def save(self):
+        f = open(DB_FILE, "w")
+        f.write(json.dumps(self.d))
+        f.close()
+        f = open(USER_FILE, "w")
+        f.write(json.dumps(self.u))
+        f.close()
+        log("Gespeichert")
+
+    # Tasks
+    def get_task(self, tid):
+        if str(tid) in self.d:
+            return self.d[str(tid)]
+        return None
+
+    def save_task(self, tid, task):
+        if task.get("title") is None or task.get("title") == "":
+            log_error("Task ohne Titel kann nicht gespeichert werden")
+            return False
+        if task.get("priority", 0) < 1 or task.get("priority", 0) > 3:
+            log_error("Ungueltige Prioritaet")
+            return False
+        self.d[str(tid)] = task
+        self.save()
+        return True
+
+    def delete_task(self, tid):
+        if str(tid) in self.d:
+            del self.d[str(tid)]
+            self.save()
+
+    def all_tasks(self):
+        return self.d
+
+    # Users
+    def get_user(self, uid):
+        if str(uid) in self.u:
+            return self.u[str(uid)]
+        return None
+
+    def save_user(self, uid, user):
+        if user.get("name") is None or user.get("name") == "":
+            log_error("User ohne Name kann nicht gespeichert werden")
+            return False
+        self.u[str(uid)] = user
+        self.save()
+        return True
+
+    def delete_user(self, uid):
+        if str(uid) in self.u:
+            del self.u[str(uid)]
+            self.save()
+
+    def all_users(self):
+        return self.u
+```
+## Nachher
+
+#### task_manager.py
+
+```python
+from datetime import datetime
+from database import Database
+from user import UserManager
+from logger import log_error, log_info, log_warning
+from reminder_service import ReminderService
+from task_formatter import TaskFormatter
+
+class TaskManager:
+
+    def __init__(self):
+        self.database = Database()
+        self.user_manager = UserManager()
+        self.reminder_service = ReminderService(self.database, self.user_manager)
+        self.task_formatter = TaskFormatter()
+        self.created_task_count = 0
+
+    def create_task(self, task_id, title, description, priority, assignee_id, due=None):
+        if not title:
+            log_error("Titel darf nicht leer sein")
+            return False
+
+        if priority not in (1, 2, 3):
+            log_error("Prioritaet muss zwischen 1 und 3 liegen")
+            return False
+
+        task = {
+            "id": task_id,
+            "title": title,
+            "desc": description,
+            "priority": priority,
+            "status": "new",
+            "assignee": assignee_id,
+            "created": str(datetime.now()),
+            "due": due,
+        }
+
+        if not self.database.save_task(task_id, task):
+            return False
+
+        self.created_task_count += 1
+        log_info(f"Task {task_id} erstellt (Anzahl: {self.created_task_count})")
+        return True
+
+    def update_status(self, task_id, new_status):
+        task = self.database.get_task(task_id)
+
+        if task is None:
+            log_error("Task nicht gefunden")
+            return False
+
+        if new_status not in ["new", "in_progress", "done", "cancelled"]:
+            log_error("Unbekannter Status")
+            return False
+
+        old_status = task["status"]
+        task["status"] = new_status
+        self.database.save_task(task_id, task)
+
+        log_info(f"Task {task_id}: {old_status} -> {new_status}")
+        return True
+
+    def delete_task(self, task_id):
+        if self.database.get_task(task_id) is None:
+            return False
+
+        self.database.delete_task(task_id)
+        log_warning(f"Task {task_id} geloescht")
+        return True
+
+    def get_task(self, task_id):
+        return self.database.get_task(task_id)
+
+    def all_tasks(self):
+        return self.database.all_tasks()
+```
+
+#### reminder_service.py
+
+```python
+from datetime import datetime
+from notifications import NotificationCenter
+
+class ReminderService:
+
+    def __init__(self, database, user_manager):
+        self.database = database
+        self.user_manager = user_manager
+        self.notification_center = NotificationCenter()
+
+    def find_overdue(self):
+        overdue_tasks = []
+
+        for task in self.database.all_tasks().values():
+            if task.get("due") is None:
+                continue
+
+            if task["status"] in ["done", "cancelled"]:
+                continue
+
+            try:
+                due_date = datetime.fromisoformat(task["due"])
+            except ValueError:
+                continue
+
+            if due_date < datetime.now():
+                overdue_tasks.append(task)
+
+        return overdue_tasks
+
+    def send_reminders(self):
+        for task in self.find_overdue():
+            user = self.user_manager.get_user(task["assignee"])
+            if user is None:
+                continue
+
+            self.notification_center.notify(
+                user,
+                "email",
+                "Aufgabe überfällig",
+                f"Die Aufgabe '{task['title']}' ist überfällig."
+            )
+```
+
+#### task_formatter.py
+
+```python
+class TaskFormatter:
+
+    def format_task(self, task):
+        if task is None:
+            return "??"
+
+        priority_names = {
+            1: "niedrig",
+            2: "mittel",
+            3: "hoch",
+        }
+
+        return (
+            f"#{task['id']} "
+            f"{task['title']} "
+            f"[{priority_names.get(task['priority'], 'unbekannt')}] "
+            f"({task['status']})"
+        )
+```
+
 
 ## 3.2 Einsatz von mehreren Mustern (3)
 
