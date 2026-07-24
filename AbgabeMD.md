@@ -145,104 +145,161 @@ Diese Verantwortlichkeiten gehören jedoch nicht zur eigentlichen Aufgabenverwal
 Auch die Methode format_task kann ausgelagert werden da sie keine CRUD-relevante Aufgabe übernimmt und nur von der Methode Main aufgerufen wird. 
 
 
-## Vorher 
-
-# SCHICHT: Infrastruktur — Persistenz
-
+### Vorher
 ```python
-import json
-import os
-from logger import log, log_error
-from config import DB_FILE, USER_FILE
+from datetime import datetime, timedelta
+from database import Database
+from email_service import EmailService
+from notifications import NotificationCenter
+from user import UserManager
+from logger import log, log_error, log_info, log_warning
 
 
-class Database:
+class TaskManager:
     def __init__(self):
-        self.d = {}
-        self.u = {}
-        os.makedirs(os.path.dirname(DB_FILE), exist_ok=True)
-        self.load()
+        self.db = Database()
+        self.email = EmailService()
+        self.notif = NotificationCenter()
+        self.users = UserManager()
+        self.cnt = 0
 
-    def load(self):
-        if os.path.exists(DB_FILE):
-            f = open(DB_FILE, "r")
-            try:
-                self.d = json.loads(f.read())
-            except:
-                log_error("Konnte tasks.json nicht laden")
-                self.d = {}
-            f.close()
-        else:
-            self.d = {}
-
-        if os.path.exists(USER_FILE):
-            f = open(USER_FILE, "r")
-            try:
-                self.u = json.loads(f.read())
-            except:
-                log_error("Konnte users.json nicht laden")
-                self.u = {}
-            f.close()
-        else:
-            self.u = {}
-
-    def save(self):
-        f = open(DB_FILE, "w")
-        f.write(json.dumps(self.d))
-        f.close()
-        f = open(USER_FILE, "w")
-        f.write(json.dumps(self.u))
-        f.close()
-        log("Gespeichert")
-
-    # Tasks
-    def get_task(self, tid):
-        if str(tid) in self.d:
-            return self.d[str(tid)]
-        return None
-
-    def save_task(self, tid, task):
-        if task.get("title") is None or task.get("title") == "":
-            log_error("Task ohne Titel kann nicht gespeichert werden")
+    def create_task(self, tid, title, desc, prio, assignee_id, due=None, mode=1):
+        if title is None or title == "":
+            log_error("Titel darf nicht leer sein")
             return False
-        if task.get("priority", 0) < 1 or task.get("priority", 0) > 3:
-            log_error("Ungueltige Prioritaet")
+        if prio < 1 or prio > 3:
+            log_error("Prioritaet muss zwischen 1 und 3 liegen")
             return False
-        self.d[str(tid)] = task
-        self.save()
+
+        t = {
+            "id": tid,
+            "title": title,
+            "desc": desc,
+            "priority": prio,
+            "status": "new",
+            "assignee": assignee_id,
+            "created": str(datetime.now()),
+            "due": due,
+        }
+
+        ok = self.db.save_task(tid, t)
+        if not ok:
+            return False
+
+        u = self.users.get_user(assignee_id)
+        if u is not None:
+            if prio == 1:
+                subject = "Neue Aufgabe (niedrig)"
+            elif prio == 2:
+                subject = "Neue Aufgabe (mittel)"
+            elif prio == 3:
+                subject = "Neue Aufgabe (hoch)"
+            else:
+                subject = "Neue Aufgabe"
+
+            body = "Dir wurde eine neue Aufgabe zugewiesen: " + title
+
+            if mode == 1:
+                self.notif.notify(u, "email", subject, body)
+            elif mode == 2:
+                self.notif.notify(u, "sms", subject, body)
+            elif mode == 3:
+                self.notif.notify(u, "both", subject, body)
+            elif mode == 4:
+                self.notif.notify(u, "all", subject, body)
+
+        self.cnt = self.cnt + 1
+        log_info("Task " + str(tid) + " erstellt (Anzahl: " + str(self.cnt) + ")")
+        return True
+
+    def update_status(self, tid, new_status):
+        t = self.db.get_task(tid)
+        if t is None:
+            log_error("Task nicht gefunden")
+            return False
+
+        if new_status not in ["new", "in_progress", "done", "cancelled"]:
+            log_error("Unbekannter Status: " + str(new_status))
+            return False
+
+        old = t["status"]
+        t["status"] = new_status
+        self.db.save_task(tid, t)
+
+        if new_status == "done":
+            u = self.users.get_user(t["assignee"])
+            if u is not None:
+                self.notif.notify(
+                    u, "email", "Aufgabe erledigt", "Die Aufgabe '" + t["title"] + "' ist erledigt."
+                )
+
+        log_info("Task " + str(tid) + ": " + old + " -> " + new_status)
         return True
 
     def delete_task(self, tid):
-        if str(tid) in self.d:
-            del self.d[str(tid)]
-            self.save()
-
-    def all_tasks(self):
-        return self.d
-
-    # Users
-    def get_user(self, uid):
-        if str(uid) in self.u:
-            return self.u[str(uid)]
-        return None
-
-    def save_user(self, uid, user):
-        if user.get("name") is None or user.get("name") == "":
-            log_error("User ohne Name kann nicht gespeichert werden")
+        t = self.db.get_task(tid)
+        if t is None:
             return False
-        self.u[str(uid)] = user
-        self.save()
+        self.db.delete_task(tid)
+        log_warning("Task " + str(tid) + " geloescht")
         return True
 
-    def delete_user(self, uid):
-        if str(uid) in self.u:
-            del self.u[str(uid)]
-            self.save()
+    def get_task(self, tid):
+        return self.db.get_task(tid)
 
-    def all_users(self):
-        return self.u
+    def all_tasks(self):
+        return self.db.all_tasks()
+
+    def format_task(self, tid):
+        t = self.db.get_task(tid)
+        if t is None:
+            return "??"
+        s = "#" + str(t["id"]) + " " + t["title"]
+        if t["priority"] == 1:
+            s = s + " [niedrig]"
+        elif t["priority"] == 2:
+            s = s + " [mittel]"
+        elif t["priority"] == 3:
+            s = s + " [hoch]"
+        s = s + " (" + t["status"] + ")"
+        return s
+
+    def find_overdue(self):
+        r = []
+        for k in self.db.all_tasks():
+            t = self.db.all_tasks()[k]
+            if t.get("due") is None:
+                continue
+            if t["status"] == "done" or t["status"] == "cancelled":
+                continue
+            try:
+                due = datetime.fromisoformat(t["due"])
+            except:
+                continue
+            if due < datetime.now():
+                r.append(t)
+        return r
+
+    def send_reminders(self):
+        overdue = self.find_overdue()
+        for t in overdue:
+            u = self.users.get_user(t["assignee"])
+            if u is None:
+                continue
+            if t["priority"] == 3:
+                self.notif.notify_urgent(
+                    u, "all", "Aufgabe ueberfaellig", "Die Aufgabe '" + t["title"] + "' ist ueberfaellig!"
+                )
+            elif t["priority"] == 2:
+                self.notif.notify(
+                    u, "both", "Aufgabe ueberfaellig", "Die Aufgabe '" + t["title"] + "' ist ueberfaellig."
+                )
+            else:
+                self.notif.notify(
+                    u, "email", "Aufgabe ueberfaellig", "Die Aufgabe '" + t["title"] + "' ist ueberfaellig."
+                )
 ```
-## Nachher
+###  Nachher
 
 #### task_manager.py
 
@@ -409,6 +466,247 @@ als abstrakte Methoden bereit.
 
 Anschließend können spezialisierte Klassen wie `TaskRepository` und `UserRepository` von dieser Basisklasse erben und die Methoden entsprechend ihrer jeweiligen Entität implementieren. Dadurch besitzt jede Repository-Klasse nur noch die Verantwortung für genau eine Datenbankentität, während die abstrakte Klasse lediglich die gemeinsame Schnittstelle definiert.
 
+###  Vorher
+
+```python
+import json
+import os
+from logger import log, log_error
+from config import DB_FILE, USER_FILE
+
+
+class Database:
+    def __init__(self):
+        self.d = {}
+        self.u = {}
+        os.makedirs(os.path.dirname(DB_FILE), exist_ok=True)
+        self.load()
+
+    def load(self):
+        if os.path.exists(DB_FILE):
+            f = open(DB_FILE, "r")
+            try:
+                self.d = json.loads(f.read())
+            except:
+                log_error("Konnte tasks.json nicht laden")
+                self.d = {}
+            f.close()
+        else:
+            self.d = {}
+
+        if os.path.exists(USER_FILE):
+            f = open(USER_FILE, "r")
+            try:
+                self.u = json.loads(f.read())
+            except:
+                log_error("Konnte users.json nicht laden")
+                self.u = {}
+            f.close()
+        else:
+            self.u = {}
+
+    def save(self):
+        f = open(DB_FILE, "w")
+        f.write(json.dumps(self.d))
+        f.close()
+        f = open(USER_FILE, "w")
+        f.write(json.dumps(self.u))
+        f.close()
+        log("Gespeichert")
+
+    # Tasks
+    def get_task(self, tid):
+        if str(tid) in self.d:
+            return self.d[str(tid)]
+        return None
+
+    def save_task(self, tid, task):
+        if task.get("title") is None or task.get("title") == "":
+            log_error("Task ohne Titel kann nicht gespeichert werden")
+            return False
+        if task.get("priority", 0) < 1 or task.get("priority", 0) > 3:
+            log_error("Ungueltige Prioritaet")
+            return False
+        self.d[str(tid)] = task
+        self.save()
+        return True
+
+    def delete_task(self, tid):
+        if str(tid) in self.d:
+            del self.d[str(tid)]
+            self.save()
+
+    def all_tasks(self):
+        return self.d
+
+    # Users
+    def get_user(self, uid):
+        if str(uid) in self.u:
+            return self.u[str(uid)]
+        return None
+
+    def save_user(self, uid, user):
+        if user.get("name") is None or user.get("name") == "":
+            log_error("User ohne Name kann nicht gespeichert werden")
+            return False
+        self.u[str(uid)] = user
+        self.save()
+        return True
+
+    def delete_user(self, uid):
+        if str(uid) in self.u:
+            del self.u[str(uid)]
+            self.save()
+
+    def all_users(self):
+        return self.u
+```
+
+## Nachher
+```python
+import json
+import os
+from abc import ABC, abstractmethod
+
+from logger import log, log_error
+from config import DB_FILE, USER_FILE
+
+
+class Database(ABC):
+    """
+    Abstrakte Basisklasse für Persistenz.
+    Definiert nur die gemeinsame Schnittstelle.
+    """
+
+    def __init__(self, file_path):
+        self.file_path = file_path
+        self.data = {}
+        self.load()
+
+    @abstractmethod
+    def load(self):
+        pass
+
+    @abstractmethod
+    def save(self):
+        pass
+
+    @abstractmethod
+    def delete(self, entity_id):
+        pass
+
+    @abstractmethod
+    def get(self, entity_id):
+        pass
+
+    @abstractmethod
+    def get_all(self):
+        pass
+
+
+class TaskRepository(Database):
+    """
+    Verantwortlich für die Persistenz von Tasks.
+    """
+
+    def __init__(self):
+        super().__init__(DB_FILE)
+
+    def load(self):
+        if os.path.exists(self.file_path):
+            try:
+                with open(self.file_path, "r") as f:
+                    self.data = json.loads(f.read())
+            except Exception:
+                log_error("Konnte tasks.json nicht laden")
+                self.data = {}
+        else:
+            self.data = {}
+
+    def save(self, task_id=None, task=None):
+        if task_id is not None and task is not None:
+            if task.get("title") is None or task.get("title") == "":
+                log_error("Task ohne Titel kann nicht gespeichert werden")
+                return False
+
+            if task.get("priority", 0) < 1 or task.get("priority", 0) > 3:
+                log_error("Ungueltige Prioritaet")
+                return False
+
+            self.data[str(task_id)] = task
+
+        try:
+            with open(self.file_path, "w") as f:
+                f.write(json.dumps(self.data))
+
+            log("Tasks gespeichert")
+            return True
+
+        except Exception:
+            log_error("Tasks konnten nicht gespeichert werden")
+            return False
+
+    def get(self, task_id):
+        return self.data.get(str(task_id))
+
+    def delete(self, task_id):
+        if str(task_id) in self.data:
+            del self.data[str(task_id)]
+            self.save()
+
+    def get_all(self):
+        return self.data
+
+
+class UserRepository(Database):
+    """
+    Verantwortlich für die Persistenz von Usern.
+    """
+
+    def __init__(self):
+        super().__init__(USER_FILE)
+
+    def load(self):
+        if os.path.exists(self.file_path):
+            try:
+                with open(self.file_path, "r") as f:
+                    self.data = json.loads(f.read())
+            except Exception:
+                log_error("Konnte users.json nicht laden")
+                self.data = {}
+        else:
+            self.data = {}
+
+    def save(self, user_id=None, user=None):
+        if user_id is not None and user is not None:
+            if user.get("name") is None or user.get("name") == "":
+                log_error("User ohne Name kann nicht gespeichert werden")
+                return False
+
+            self.data[str(user_id)] = user
+
+        try:
+            with open(self.file_path, "w") as f:
+                f.write(json.dumps(self.data))
+
+            log("Users gespeichert")
+            return True
+
+        except Exception:
+            log_error("Users konnten nicht gespeichert werden")
+            return False
+
+    def get(self, user_id):
+        return self.data.get(str(user_id))
+
+    def delete(self, user_id):
+        if str(user_id) in self.data:
+            del self.data[str(user_id)]
+            self.save()
+
+    def get_all(self):
+        return self.data
+```
 
 ## 3.2 Einsatz von mehreren Mustern (3)
 
