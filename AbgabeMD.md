@@ -709,6 +709,110 @@ class UserRepository(Database):
 
 ## 3.3 ADRs für Refactoring anhand SOLID-korrektur und Patterns
 
+# ADR-001: Verwendung des Command Patterns für Aufgabenaktionen
+
+- **Status:** Akzeptiert
+
+## Kontext
+
+Der bisherige `TaskManager` enthält mehrere unterschiedliche Aktionen:
+
+- Aufgabe erstellen
+- Aufgabe löschen
+- Status ändern
+- Erinnerung versenden
+- Aufgaben abrufen
+
+Dadurch wird die Klasse groß und übernimmt mehrere Verantwortlichkeiten.
+
+## Entscheidung
+
+Die Aufgabenaktionen werden mit dem **Command Pattern** in einzelne Klassen aufgeteilt.
+
+Geplante Commands sind:
+
+- `CreateTaskCommand`
+- `DeleteTaskCommand`
+- `ChangeTaskStatusCommand`
+- `SendReminderCommand`
+
+Jedes Command besitzt eine klar abgegrenzte Aufgabe und eine Methode wie `execute()`.
+
+## Begründung
+
+Das Command Pattern passt zu den einzelnen Aktionen des Task-Management-Systems. Jede Aktion kann separat implementiert, getestet und erweitert werden.
+
+Dadurch wird das **Single Responsibility Principle (SRP)** besser eingehalten.
+
+## Konsequenzen
+
+### Vorteile
+
+- Kleinere Klassen
+- Bessere Testbarkeit
+- Klare Zuordnung von Verantwortlichkeiten
+- Einzelne Aktionen können unabhängig erweitert werden
+
+### Nachteile
+
+- Mehr Klassen
+- Einfache Aktionen benötigen zusätzliche Struktur
+- Die Erzeugung und Übergabe der Commands muss zentral organisiert werden
+
+---
+
+# ADR-002: Verwendung des Strategy Patterns für Benachrichtigungskanäle
+
+- **Status:** Akzeptiert
+
+## Kontext
+
+Das System unterstützt verschiedene Benachrichtigungskanäle:
+
+- E-Mail
+- SMS
+- Push
+
+Ohne ein eigenes Muster müsste die Auswahl des Kanals durch `if`- oder `elif`-Blöcke erfolgen. Bei jedem neuen Kanal müsste die bestehende Logik geändert werden.
+
+## Entscheidung
+
+Die Benachrichtigungskanäle werden mithilfe des **Strategy Patterns** implementiert.
+
+Alle Benachrichtigungsadapter implementieren den gemeinsamen `NotificationPort`.
+
+Konkrete Strategien sind:
+
+- `EmailNotifier`
+- `SmsNotifier`
+- `PushNotifier`
+
+Der benötigte Adapter wird von außen an den jeweiligen Use Case übergeben.
+
+Ein separater `NotificationService` wird nicht als Outbound Adapter verwendet.
+
+## Begründung
+
+E-Mail, SMS und Push verfolgen dasselbe Ziel, verwenden jedoch unterschiedliche technische Abläufe.
+
+Das Strategy Pattern ermöglicht es, diese Varianten hinter einer gemeinsamen Schnittstelle zu kapseln. Neue Kanäle können ergänzt werden, ohne bestehende Use Cases zu verändern.
+
+## Konsequenzen
+
+### Vorteile
+
+- Keine langen Fallunterscheidungen für Benachrichtigungskanäle
+- Neue Kanäle können als neue Adapter ergänzt werden
+- Benachrichtigungsarten sind separat testbar
+- Die Auswahl der Strategie erfolgt im Composition Root oder anhand der Anwendungskonfiguration
+- Das Open/Closed Principle (OCP) wird besser eingehalten
+
+### Nachteile
+
+- Zusätzliche Klassen und Interfaces
+- Die Strategie muss zur Laufzeit ausgewählt und injiziert werden
+- Für einfache Anwendungen kann die Architektur komplexer wirken
+
 
 ## 3.4 Neue Features (3)
 
