@@ -1070,8 +1070,53 @@ wodurch das Liskov Substitution Principle eingehalten wird.
 
 
 ## 3.3 ADRs für Refactoring anhand SOLID-korrektur und Patterns
+# ADR-001: Einführung einer hexagonalen Architektur
 
-# ADR-001: Verwendung des Command Patterns für Aufgabenaktionen
+- **Status:** Akzeptiert
+
+## Kontext
+
+Die bisherige Architektur koppelt die Geschäftslogik direkt an technische Komponenten wie JSON-Speicherung, Benachrichtigungsdienste und die Kommandozeilenoberfläche. Klassen wie der `TaskManager` erzeugen konkrete Abhängigkeiten selbst und übernehmen mehrere Verantwortlichkeiten.
+
+Dadurch sind einzelne Komponenten schwer austauschbar und nur mit hohem Aufwand isoliert testbar.
+
+## Entscheidung
+
+Das Projekt wird nach dem Prinzip der **hexagonalen Architektur (Ports and Adapters)** strukturiert.
+
+Das System wird in folgende Bereiche aufgeteilt:
+
+- Domain
+- Application mit Use Cases und Ports
+- Inbound Adapter
+- Outbound Adapter
+- Infrastructure
+
+Die Abhängigkeiten zeigen grundsätzlich von außen nach innen. Die Domain bleibt vollständig unabhängig von technischen Komponenten.
+
+## Begründung
+
+Die hexagonale Architektur trennt Fachlogik und technische Umsetzung. Dadurch kann beispielsweise die JSON-Speicherung später durch SQLite oder eine andere Persistenzlösung ersetzt werden, ohne die Use Cases oder die Domain zu verändern.
+
+Außerdem können unterschiedliche Benutzeroberflächen wie eine CLI oder eine REST-API dieselben Use Cases verwenden.
+
+## Konsequenzen
+
+### Vorteile
+
+- Geringere Kopplung zwischen Fachlogik und Infrastruktur
+- Bessere Testbarkeit durch klar definierte Ports
+- Austauschbare technische Komponenten
+- Klare Trennung von Verantwortlichkeiten
+- Bessere Einhaltung der SOLID-Prinzipien
+
+### Nachteile
+
+- Mehr Klassen und Schnittstellen
+- Höherer anfänglicher Strukturierungsaufwand
+- Für kleine Projekte teilweise mehr Abstraktion als technisch zwingend notwendig
+
+# ADR-002: Verwendung des Command Patterns für Aufgabenaktionen
 
 - **Status:** Akzeptiert
 
@@ -1123,7 +1168,7 @@ Dadurch wird das **Single Responsibility Principle (SRP)** besser eingehalten.
 
 ---
 
-# ADR-002: Verwendung des Strategy Patterns für Benachrichtigungskanäle
+# ADR-003: Verwendung des Strategy Patterns für Benachrichtigungskanäle
 
 - **Status:** Akzeptiert
 
@@ -1174,6 +1219,57 @@ Das Strategy Pattern ermöglicht es, diese Varianten hinter einer gemeinsamen Sc
 - Zusätzliche Klassen und Interfaces
 - Die Strategie muss zur Laufzeit ausgewählt und injiziert werden
 - Für einfache Anwendungen kann die Architektur komplexer wirken
+
+# ADR-004: Verwendung des Facade Patterns für den Datenzugriff
+
+## Status
+
+**Akzeptiert**
+
+## Kontext
+
+Die Anwendung greift auf verschiedene Komponenten der Datenhaltung zu. Ohne eine gemeinsame Zugriffsschicht müssten Komponenten der Application-Schicht mehrere Repository-Schnittstellen direkt verwenden.
+
+Dadurch entstehen zusätzliche Abhängigkeiten und die interne Struktur der Datenhaltung wird für aufrufende Komponenten sichtbar.
+
+## Entscheidung
+
+Für den Datenzugriff wird das **Facade Pattern** eingesetzt.
+
+Eine `DatabaseFacade` stellt eine zentrale und vereinfachte Schnittstelle für den Zugriff auf die Datenhaltung bereit. Die interne Organisation der Repository-Komponenten wird dabei gekapselt.
+
+## Begründung
+
+Das Facade Pattern reduziert die Komplexität des Datenzugriffs und entkoppelt die Application-Schicht von der internen Struktur der Datenhaltung.
+
+Änderungen an der Organisation oder Implementierung der Repository-Komponenten können vorgenommen werden, ohne dass aufrufende Komponenten angepasst werden müssen.
+
+Die Entscheidung verbessert außerdem die Wartbarkeit und sorgt für eine klarere Trennung der Verantwortlichkeiten.
+
+## Konsequenzen
+
+### Vorteile
+
+- vereinfachter Zugriff auf die Datenhaltung
+- geringere Kopplung zwischen Application und Datenzugriff
+- zentrale Schnittstelle für Datenoperationen
+- bessere Wartbarkeit und Erweiterbarkeit
+
+### Nachteile
+
+- zusätzliche Abstraktionsschicht
+- Gefahr einer überladenen Facade bei zu vielen Verantwortlichkeiten
+- zusätzlicher Implementierungsaufwand
+
+## Verworfene Alternativen
+
+### Direkter Zugriff auf mehrere Repository-Komponenten
+
+Diese Variante wurde verworfen, da Komponenten der Application-Schicht mehrere Repository-Schnittstellen direkt kennen und verwenden müssten. Dadurch steigt die Kopplung und Änderungen an der Datenhaltung wirken sich stärker auf andere Teile des Systems aus.
+
+### Direkter Zugriff auf konkrete Datenzugriffsklassen
+
+Diese Variante wurde verworfen, da sie die Application-Schicht an konkrete Implementierungen der Datenhaltung koppelt und den Austausch der Speichertechnologie erschwert.
 
 
 ## 3.4 Neue Features (3)
