@@ -1420,8 +1420,11 @@ task_manager = TaskManager(
 
 Dadurch ist `TaskManager` nicht länger an konkrete Implementierungen gekoppelt.
 Für Tests können beispielsweise Mock-Implementierungen oder Test-Repositories übergeben werden, ohne die Klasse selbst ändern zu müssen.
-Ebenso können alternative Persistenz- oder Benachrichtigungssysteme integriert werden, ohne den bestehenden Code des `TaskManager` anzupassen.
-
+Ebenso können alternative Persistenz- oder Benachrichtigungssysteme integriert werden, 
+ohne den bestehenden Code des `TaskManager` anzupassen oder konkrete Abhängigkeiten innerhalb der Klasse ersetzen zu müssen.
+Darüber hinaus lassen sich Konfigurationen, beispielsweise für die verwendete Datenbank, zentral verwalten und abstrahieren. 
+Dadurch kann zwischen unterschiedlichen Implementierungen oder Konfigurationen gewechselt werden, 
+ohne Änderungen an der Geschäftslogik des `TaskManager` vorzunehmen.
 
 ## 3.2 Einsatz von mehreren Mustern (3)
 
