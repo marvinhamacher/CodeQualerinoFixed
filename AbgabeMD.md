@@ -118,9 +118,9 @@
 
 Oben wurden sich 5 SOLID - Verletzungen im Detail angesehen.
 Folgend werden 5 Verletzungen mit Sourcecode behoben. 
-Die Fixes bestehen in sich selber. 
+Die Fixes bestehen in sich selber und sind unabhängige vorschläge, jedoch können sie in anderen Kapitel, sofern notiert als ausgangslage vorliegen.
 Sie betrachten einzelne Fixes für die jeweiligen Klassen und nicht eine Klasse wo alle fehler auf ein mal behoben werden.
-Die einzelbetrachtung sollen zeigen, dass die ursache des Problems verstanden wurde und auch verstanden wurde wie diese zu beheben ist.
+Die Einzelbetrachtung sollen zeigen, dass die ursache des Problems verstanden wurde und auch verstanden wurde wie diese zu beheben ist.
 
 ### 3.1.1  Single Responsibility Principle bei `task_manager.py`
 `task_manager.py` hat aktuell Methoden, die nicht nur für das Verwalten von Aufgaben wichtig sind. 
