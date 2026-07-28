@@ -96,23 +96,11 @@
 
 ---
 
-### 1.2.3 Liskov Substitution Principle bei `user_types.py` verletzt
+### 1.2.4 Liskov Substitution Principle bei `user_types.py` verletzt
 
 - **Grund:** Unterklassen sind nicht immer kompatibel mit der Basisklasse.
 - **Wartbarkeit:** Entwickler können sich nicht darauf verlassen, dass Unterklassen überall dort eingesetzt werden können, wo die Basisklasse erwartet wird. Das erschwert die Wiederverwendbarkeit und erhöht den Testaufwand.
 - **Severity:** **Medium**, da fehlerhaftes Verhalten erst zur Laufzeit auftreten kann und die Klassenhierarchie schwerer verständlich wird.
-
----
-
-###  1.2.4 Interface Segregation Principle und Single Responsibility Principle bei `email_service.py` verletzt
-
-#### Single Responsibility Principle (SRP)
-
-- **Grund:** Die Klasse heißt `EmailService` und sollte sich deshalb nur um E-Mails kümmern, übernimmt allerdings auch den Versand von SMS und Push-Benachrichtigungen.
-
-- **Wartbarkeit:** Die Klasse bündelt mehrere Verantwortlichkeiten. Änderungen an einer Benachrichtigungsart können andere Versandwege beeinflussen und erschweren das Verständnis sowie die Erweiterbarkeit der Klasse.
-
-- **Severity:** **Medium**, da die Funktionalität zwar erhalten bleibt, die Klasse jedoch unnötig stark gekoppelt ist.
 
 ---
 
@@ -702,8 +690,382 @@ class UserRepository(Database):
         return self.data
 ```
 
-### 3.1.3 Single Responsibility Principle bei `database.py` verletzt
+### 3.1.3 Open/Close Principle bei `report_generator.py` ist verletzt.
+`report_generator.py` besitzt aktuell für jede Berichtsart eine eigene Methode (`daily_report()`, `weekly_report()`, `monthly_report()`). Zusätzlich entscheidet die Methode `email_report()` mittels einer `if`-/`elif`-Verzweigung, welcher Bericht erzeugt werden soll.
 
+Problem an der Jetzigen umsetzung war dass jede neue ReportArt den `report_generator.py` komplett funktional erweitern müsste, somit wird die Datei bei vermehrter Erweiterung unübersichtlich. Es müssen sowohl eine neue Methode implementiert als auch die bestehende Verzweigung in `email_report()` erweitert werden. Dadurch ist die Klasse nicht für Erweiterungen offen.
+
+Um das **Open/Closed Principle** einzuhalten, sollte eine abstrakte Basisklasse `Report` eingeführt werden. Diese definiert lediglich die gemeinsame Schnittstelle zur Berichtserstellung über die Methode `generate()`.
+
+Die konkreten Berichtsarten wie `DailyReport`, `WeeklyReport` und `MonthlyReport` implementieren anschließend jeweils ihre eigene Erzeugungslogik. `ReportGenerator` verwaltet lediglich die verfügbaren Berichtstypen und ruft deren `generate()`-Methode auf. Neue Reporttypen müssen hier nur noch registriert werden, somit sprengen neue Erweiterungen nicht mehr den Dateiumfang.
+
+Theoretisch ließe sich die Berichtserstellung auch generisch lösen, indem Reporttypen parametrisiert verarbeitet werden. Im Rahmen dieses Refactorings wurde darauf bewusst verzichtet, da die Verletzung des Open/Closed Principle bereits durch die Einführung einer gemeinsamen Basisklasse und spezialisierter Berichtsklassen behoben wird. 
+
+
+### Vorher
+
+```python
+# report_generator.py
+# Hier den bisherigen report_generator.py einfügen.
+```
+
+### Nachher
+
+#### report.py
+
+```python
+from abc import ABC, abstractmethod
+from datetime import datetime, timedelta
+from task_repository import TaskRepository
+
+
+class Report(ABC):
+
+    def __init__(self):
+        self.repository = TaskRepository()
+
+    @abstractmethod
+    def generate(self):
+        pass
+
+    def _count_tasks(self, days):
+        tasks = self.repository.get_all()
+
+        compare_date = datetime.now() - timedelta(days=days)
+
+        new = 0
+        done = 0
+        open_tasks = 0
+
+        for task in tasks.values():
+            try:
+                created = datetime.fromisoformat(task.get("created", ""))
+            except ValueError:
+                continue
+
+            if created < compare_date:
+                continue
+
+            if task["status"] == "new":
+                new += 1
+            elif task["status"] == "done":
+                done += 1
+            else:
+                open_tasks += 1
+
+        return new, done, open_tasks
+```
+
+#### daily_report.py
+
+```python
+from datetime import datetime
+from report import Report
+
+
+class DailyReport(Report):
+
+    def generate(self):
+        new, done, open_tasks = self._count_tasks(1)
+
+        return (
+            "=== TAGESBERICHT ===\n"
+            f"Datum: {datetime.now().date()}\n\n"
+            f"Neu: {new}\n"
+            f"Erledigt: {done}\n"
+            f"Offen: {open_tasks}\n"
+        )
+```
+
+#### weekly_report.py
+
+```python
+from datetime import datetime
+from report import Report
+
+
+class WeeklyReport(Report):
+
+    def generate(self):
+        new, done, open_tasks = self._count_tasks(7)
+
+        return (
+            "=== WOCHENBERICHT ===\n"
+            f"Woche ab: {datetime.now().date()}\n\n"
+            f"Neu: {new}\n"
+            f"Erledigt: {done}\n"
+            f"Offen: {open_tasks}\n"
+        )
+```
+
+#### monthly_report.py
+
+```python
+from datetime import datetime
+from report import Report
+
+
+class MonthlyReport(Report):
+
+    def generate(self):
+        new, done, open_tasks = self._count_tasks(30)
+
+        return (
+            "=== MONATSBERICHT ===\n"
+            f"Monat: {datetime.now().date()}\n\n"
+            f"Neu: {new}\n"
+            f"Erledigt: {done}\n"
+            f"Offen: {open_tasks}\n"
+        )
+```
+
+#### report_generator.py
+
+```python
+from email_service import EmailService
+
+from daily_report import DailyReport
+from weekly_report import WeeklyReport
+from monthly_report import MonthlyReport
+
+
+class ReportGenerator:
+
+    def __init__(self):
+        self.email_service = EmailService()
+
+        self.reports = {
+            "daily": DailyReport(),
+            "weekly": WeeklyReport(),
+            "monthly": MonthlyReport(),
+        }
+
+    def generate(self, report_type):
+        report = self.reports.get(report_type)
+
+        if report is None:
+            return None
+
+        return report.generate()
+
+    def email_report(self, report_type, recipient):
+        content = self.generate(report_type)
+
+        if content is None:
+            return False
+
+        return self.email_service.send(
+            recipient,
+            f"Bericht: {report_type}",
+            content,
+        )
+```
+
+### Anpassungen im restlichen Projekt
+
+Alle bisherigen Aufrufe
+
+```python
+report_generator.daily_report()
+report_generator.weekly_report()
+report_generator.monthly_report()
+```
+
+werden ersetzt durch
+
+```python
+report_generator.generate("daily")
+report_generator.generate("weekly")
+report_generator.generate("monthly")
+```
+
+Die Methode
+
+```python
+report_generator.email_report(report_type, recipient)
+```
+
+bleibt unverändert bestehen und muss an keiner Stelle angepasst werden.
+
+
+### 3.1.4 Liskov Substitution Principle bei `user_types.py` verletzt
+
+Die Klasse `User` definiert die Methoden `update_email()` und `delete_account()` so, dass diese erfolgreich ausgeführt werden und einen Rückgabewert liefern. Die Unterklassen `AdminUser` und `ReadOnlyUser` ändern dieses Verhalten jedoch grundlegend.
+
+Während `AdminUser.update_email()` keinen Rückgabewert mehr liefert und `delete_account()` stattdessen eine Ausnahme auslöst, werfen die Methoden der Klasse `ReadOnlyUser` ebenfalls `PermissionError`-Ausnahmen. Dadurch können Objekte dieser Unterklassen nicht mehr überall dort eingesetzt werden, wo ein Objekt der Basisklasse `User` erwartet wird.
+
+Dies verletzt das **Liskov Substitution Principle**, da Unterklassen das Verhalten ihrer Basisklasse nicht verändern dürfen. Jede Unterklasse muss sich so verhalten, dass sie die Basisklasse ohne Seiteneffekte ersetzen kann.
+
+Um das LSP einzuhalten, sollte die Klassenhierarchie so angepasst werden, dass alle Unterklassen dieselben Verträge der Basisklasse erfüllen. 
+
+Statt das Verhalten durch Ausnahmen zu verändern, werden optionale Fähigkeiten über zusätzliche Schnittstellen oder Komposition modelliert.
+Beispielsweise kann eine Basisklasse `User` ausschließlich gemeinsame Eigenschaften und Leseoperationen enthalten,
+während schreibende oder administrative Funktionen in separate Rollen ausgelagert werden.
+
+Das Resultat ermöglicht ein frei kombinierbares Permissionssystem.
+
+### Vorher
+#### user_types.py
+```python
+class User:
+    """Basisklasse fuer alle Benutzer."""
+
+    def __init__(self, uid, name, email):
+        self.uid = uid
+        self.nm = name
+        self.em = email
+
+    def update_email(self, new_email):
+        """Aktualisiert die E-Mail. Gibt True zurueck bei Erfolg."""
+        self.em = new_email
+        return True
+
+    def delete_account(self):
+        """Loescht den Account. Gibt True zurueck bei Erfolg."""
+        return True
+
+    def get_info(self):
+        return self.nm + " (" + self.em + ")"
+
+
+class AdminUser(User):
+    def __init__(self, uid, name, email):
+        super().__init__(uid, name, email)
+        self.p = ["read", "write", "delete", "admin"]
+
+    def update_email(self, new_email):
+        self.em = new_email
+
+    def delete_account(self):
+        raise PermissionError("Admin-Accounts koennen nicht geloescht werden")
+
+
+class ReadOnlyUser(User):
+    """Benutzer ohne Schreibrechte."""
+
+    def update_email(self, new_email):
+        raise PermissionError("ReadOnly-Benutzer koennen ihre E-Mail nicht aendern")
+
+    def delete_account(self):
+        raise PermissionError("ReadOnly-Benutzer koennen nicht geloescht werden")
+```
+
+
+### Nachher
+
+Es ist besser die Types in eigenen Datein abzubilden. Python ermöglicht zwar im Vergleich zu anderen Programmierprachen wie JAVA, das mehrere
+Klassen in einer Datei sind, jedoch geht dadurch die übersicht verloren.
+
+#### user.py
+
+```python
+class User:
+
+    def __init__(self, uid, name, email):
+        self.uid = uid
+        self.name = name
+        self.email = email
+
+    def get_info(self):
+        return f"{self.name} ({self.email})"
+```
+
+#### editable_user.py
+
+```python
+from abc import ABC, abstractmethod
+from user import User
+
+
+class EditableUser(User, ABC):
+
+    @abstractmethod
+    def update_email(self, new_email):
+        pass
+```
+
+#### deletable_user.py
+
+```python
+from abc import ABC, abstractmethod
+from user import User
+
+
+class DeletableUser(User, ABC):
+
+    @abstractmethod
+    def delete_account(self):
+        pass
+```
+
+#### standard_user.py
+
+```python
+from editable_user import EditableUser
+from deletable_user import DeletableUser
+
+
+class StandardUser(EditableUser, DeletableUser):
+
+    def update_email(self, new_email):
+        self.email = new_email
+        return True
+
+    def delete_account(self):
+        return True
+```
+
+#### admin_user.py
+
+```python
+from editable_user import EditableUser
+
+
+class AdminUser(EditableUser):
+
+    def __init__(self, uid, name, email):
+        super().__init__(uid, name, email)
+        self.permissions = ["read", "write", "delete", "admin"]
+
+    def update_email(self, new_email):
+        self.email = new_email
+        return True
+```
+
+#### readonly_user.py
+
+```python
+from user import User
+
+
+class ReadOnlyUser(User):
+    pass
+```
+
+### Anpassungen im restlichen Projekt
+
+Alle Stellen, an denen bislang vorausgesetzt wurde, dass jeder `User` die Methoden
+
+```python
+user.update_email(...)
+user.delete_account()
+```
+
+besitzt, müssen angepasst werden.
+
+Stattdessen wird geprüft, ob der Benutzer die entsprechende Fähigkeit unterstützt:
+
+```python
+if isinstance(user, EditableUser):
+    user.update_email("neue@email.de")
+
+if isinstance(user, DeletableUser):
+    user.delete_account()
+```
+
+Dadurch besitzen nur noch Benutzer, die die jeweilige Fähigkeit tatsächlich unterstützen, die entsprechenden Methoden. 
+Gleichzeitig bleiben alle Unterklassen vollständig kompatibel zur Basisklasse `User`, 
+wodurch das Liskov Substitution Principle eingehalten wird.
 ## 3.2 Einsatz von mehreren Mustern (3)
 
 
