@@ -1424,6 +1424,76 @@ Ebenso können alternative Persistenz- oder Benachrichtigungssysteme integriert 
 
 
 ## 3.2 Einsatz von mehreren Mustern (3)
+### Umsetzung des Strategy Patterns für Benachrichtigungen
+
+notification_strategy.py
+```python
+class NotificationStrategy(ABC):
+    @abstractmethod
+    def send(self, user, subject, body):
+        raise NotImplementedError
+```
+
+notification_adapters.py
+```python
+class EmailNotifier(NotificationStrategy):
+    def __init__(self, service):
+        self.service = service
+
+    def send(self, user, subject, body):
+        return self.service.send(user.get("email", ""), subject, body)
+
+
+class SmsNotifier(NotificationStrategy):
+    def __init__(self, service):
+        self.service = service
+
+    def send(self, user, subject, body):
+        message = f"{subject}: {body}"
+        return self.service.send_sms(user.get("phone", ""), message)
+
+
+class PushNotifier(NotificationStrategy):
+    def __init__(self, service):
+        self.service = service
+
+    def send(self, user, subject, body):
+        message = f"{subject}: {body}"
+        return self.service.send_push(user.get("device", ""), message)
+```
+
+notifications.py
+```python
+class NotificationCenter:
+    def __init__(self, strategies=None, channel_groups=None):
+        self.strategies = strategies or {
+            "email": EmailNotifier(),
+            "sms": SmsNotifier(),
+            "push": PushNotifier(),
+        }
+        self.channel_groups = channel_groups or {
+            "email": ("email",),
+            "sms": ("sms",),
+            "push": ("push",),
+            "both": ("email", "sms"),
+            "all": ("email", "sms", "push"),
+        }
+
+    def notify(self, user, channel, subject, body):
+        selected_channels = self.channel_groups.get(channel)
+        if selected_channels is None:
+            log_error("Unknown channel: " + str(channel))
+            return False
+
+        results = [
+            self.strategies[channel_name].send(user, subject, body)
+            for channel_name in selected_channels
+        ]
+        return all(results)
+
+    def notify_urgent(self, user, channel, subject, body):
+        return self.notify(user, channel, "[URGENT] " + subject, body)
+```
 
 
 ## 3.3 ADRs für Refactoring anhand SOLID-korrektur und Patterns
