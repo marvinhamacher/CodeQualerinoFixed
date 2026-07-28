@@ -118,7 +118,9 @@
 
 Oben wurden sich 5 SOLID - Verletzungen im Detail angesehen.
 Folgend werden 5 Verletzungen mit Sourcecode behoben. 
-Im Abteil 3.2 lassen sich die ADRs für das Refactoring finden.
+Die Fixes bestehen in sich selber. 
+Sie betrachten einzelne Fixes für die jeweiligen Klassen und nicht eine Klasse wo alle fehler auf ein mal behoben werden.
+Die einzelbetrachtung sollen zeigen, dass die ursache des Problems verstanden wurde und auch verstanden wurde wie diese zu beheben ist.
 
 ### 3.1.1  Single Responsibility Principle bei `task_manager.py`
 `task_manager.py` hat aktuell Methoden, die nicht nur für das Verwalten von Aufgaben wichtig sind. 
@@ -705,8 +707,129 @@ Theoretisch ließe sich die Berichtserstellung auch generisch lösen, indem Repo
 ### Vorher
 
 ```python
-# report_generator.py
-# Hier den bisherigen report_generator.py einfügen.
+from datetime import datetime, timedelta
+from database import Database
+from user import UserManager
+from logger import log
+
+
+class ReportGenerator:
+    def __init__(self):
+        self.db = Database()
+        self.users = UserManager()
+
+    def daily_report(self):
+        o = ""
+        o = o + "=== TAGESBERICHT ===\n"
+        o = o + "Datum: " + str(datetime.now().date()) + "\n"
+        o = o + "\n"
+
+        ts = self.db.all_tasks()
+        c = datetime.now() - timedelta(days=1)
+
+        n = 0
+        d = 0
+        op = 0
+
+        for k in ts:
+            t = ts[k]
+            try:
+                cr = datetime.fromisoformat(t.get("created", ""))
+            except:
+                continue
+            if cr < c:
+                continue
+            if t["status"] == "new":
+                n = n + 1
+            elif t["status"] == "done":
+                d = d + 1
+            else:
+                op = op + 1
+
+        o = o + "Neu: " + str(n) + "\n"
+        o = o + "Erledigt: " + str(d) + "\n"
+        o = o + "Offen: " + str(op) + "\n"
+        return o
+
+    def weekly_report(self):
+        o = ""
+        o = o + "=== WOCHENBERICHT ===\n"
+        o = o + "Woche ab: " + str(datetime.now().date()) + "\n"
+        o = o + "\n"
+
+        ts = self.db.all_tasks()
+        c = datetime.now() - timedelta(days=7)
+
+        n = 0
+        d = 0
+        op = 0
+
+        for k in ts:
+            t = ts[k]
+            try:
+                cr = datetime.fromisoformat(t.get("created", ""))
+            except:
+                continue
+            if cr < c:
+                continue
+            if t["status"] == "new":
+                n = n + 1
+            elif t["status"] == "done":
+                d = d + 1
+            else:
+                op = op + 1
+
+        o = o + "Neu: " + str(n) + "\n"
+        o = o + "Erledigt: " + str(d) + "\n"
+        o = o + "Offen: " + str(op) + "\n"
+        return o
+
+    def monthly_report(self):
+        o = ""
+        o = o + "=== MONATSBERICHT ===\n"
+        o = o + "Monat: " + str(datetime.now().date()) + "\n"
+        o = o + "\n"
+
+        ts = self.db.all_tasks()
+        c = datetime.now() - timedelta(days=30)
+
+        n = 0
+        d = 0
+        op = 0
+
+        for k in ts:
+            t = ts[k]
+            try:
+                cr = datetime.fromisoformat(t.get("created", ""))
+            except:
+                continue
+            if cr < c:
+                continue
+            if t["status"] == "new":
+                n = n + 1
+            elif t["status"] == "done":
+                d = d + 1
+            else:
+                op = op + 1
+
+        o = o + "Neu: " + str(n) + "\n"
+        o = o + "Erledigt: " + str(d) + "\n"
+        o = o + "Offen: " + str(op) + "\n"
+        return o
+
+    def email_report(self, report_type, recipient):
+        if report_type == "daily":
+            content = self.daily_report()
+        elif report_type == "weekly":
+            content = self.weekly_report()
+        elif report_type == "monthly":
+            content = self.monthly_report()
+        else:
+            return False
+
+        from email_service import EmailService
+        es = EmailService()
+        return es.send(recipient, "Bericht: " + report_type, content)
 ```
 
 ### Nachher
@@ -953,7 +1076,7 @@ class ReadOnlyUser(User):
 
 ### Nachher
 
-Es ist besser die Types in eigenen Datein abzubilden. Python ermöglicht zwar im Vergleich zu anderen Programmierprachen wie JAVA, das mehrere
+Es ist besser die Types in eigenen Dateien abzubilden. Python ermöglicht zwar im Vergleich zu anderen Programmierprachen wie JAVA, das mehrere
 Klassen in einer Datei sind, jedoch geht dadurch die übersicht verloren.
 
 #### user.py
@@ -1066,6 +1189,240 @@ if isinstance(user, DeletableUser):
 Dadurch besitzen nur noch Benutzer, die die jeweilige Fähigkeit tatsächlich unterstützen, die entsprechenden Methoden. 
 Gleichzeitig bleiben alle Unterklassen vollständig kompatibel zur Basisklasse `User`, 
 wodurch das Liskov Substitution Principle eingehalten wird.
+
+### 3.1.5 Dependency Inversion Principle bei `task_manager.py` verletzt
+`task_manager.py` erzeugt die benötigten Abhängigkeiten derzeit selbst.
+Im Konstruktor der Klasse `TaskManager` werden beispielsweise `Database`, `NotificationCenter`, `EmailService` und `UserManager` direkt instanziiert.
+Dadurch hängt das High-Level-Modul `TaskManager` unmittelbar von konkreten Implementierungen der Low-Level-Module ab. 
+Änderungen an diesen Klassen oder deren Konstruktoren erfordern Anpassungen am `TaskManager`. Darüber hinaus wird das Testen erschwert, da sich konkrete Implementierungen nicht ohne Weiteres durch Mock-Objekte oder alternative Implementierungen ersetzen lassen.
+Dies verletzt das **Dependency Inversion Principle**, nach dem High-Level-Module nicht von konkreten Implementierungen, sondern von Abstraktionen abhängig sein sollen.
+
+Um das DIP einzuhalten, werden die benötigten Abhängigkeiten über den Konstruktor in den `TaskManager` injiziert (Constructor Injection). Dadurch kennt `TaskManager` lediglich die benötigten Schnittstellen und ist nicht mehr für die Erzeugung der Objekte verantwortlich. Die Instanziierung erfolgt stattdessen außerhalb der Klasse, beispielsweise im Programmstart (`main.py`) oder durch einen Dependency-Container.
+
+### Vorher
+
+```python
+
+from datetime import datetime, timedelta
+from database import Database
+from email_service import EmailService
+from notifications import NotificationCenter
+from user import UserManager
+from logger import log, log_error, log_info, log_warning
+
+
+class TaskManager:
+    def __init__(self):
+        self.db = Database()
+        self.email = EmailService()
+        self.notif = NotificationCenter()
+        self.users = UserManager()
+        self.cnt = 0
+
+    def create_task(self, tid, title, desc, prio, assignee_id, due=None, mode=1):
+        if title is None or title == "":
+            log_error("Titel darf nicht leer sein")
+            return False
+        if prio < 1 or prio > 3:
+            log_error("Prioritaet muss zwischen 1 und 3 liegen")
+            return False
+
+        t = {
+            "id": tid,
+            "title": title,
+            "desc": desc,
+            "priority": prio,
+            "status": "new",
+            "assignee": assignee_id,
+            "created": str(datetime.now()),
+            "due": due,
+        }
+
+        ok = self.db.save_task(tid, t)
+        if not ok:
+            return False
+
+        u = self.users.get_user(assignee_id)
+        if u is not None:
+            if prio == 1:
+                subject = "Neue Aufgabe (niedrig)"
+            elif prio == 2:
+                subject = "Neue Aufgabe (mittel)"
+            elif prio == 3:
+                subject = "Neue Aufgabe (hoch)"
+            else:
+                subject = "Neue Aufgabe"
+
+            body = "Dir wurde eine neue Aufgabe zugewiesen: " + title
+
+            if mode == 1:
+                self.notif.notify(u, "email", subject, body)
+            elif mode == 2:
+                self.notif.notify(u, "sms", subject, body)
+            elif mode == 3:
+                self.notif.notify(u, "both", subject, body)
+            elif mode == 4:
+                self.notif.notify(u, "all", subject, body)
+
+        self.cnt = self.cnt + 1
+        log_info("Task " + str(tid) + " erstellt (Anzahl: " + str(self.cnt) + ")")
+        return True
+
+    def update_status(self, tid, new_status):
+        t = self.db.get_task(tid)
+        if t is None:
+            log_error("Task nicht gefunden")
+            return False
+
+        if new_status not in ["new", "in_progress", "done", "cancelled"]:
+            log_error("Unbekannter Status: " + str(new_status))
+            return False
+
+        old = t["status"]
+        t["status"] = new_status
+        self.db.save_task(tid, t)
+
+        if new_status == "done":
+            u = self.users.get_user(t["assignee"])
+            if u is not None:
+                self.notif.notify(
+                    u, "email", "Aufgabe erledigt", "Die Aufgabe '" + t["title"] + "' ist erledigt."
+                )
+
+        log_info("Task " + str(tid) + ": " + old + " -> " + new_status)
+        return True
+
+    def delete_task(self, tid):
+        t = self.db.get_task(tid)
+        if t is None:
+            return False
+        self.db.delete_task(tid)
+        log_warning("Task " + str(tid) + " geloescht")
+        return True
+
+    def get_task(self, tid):
+        return self.db.get_task(tid)
+
+    def all_tasks(self):
+        return self.db.all_tasks()
+
+    def format_task(self, tid):
+        t = self.db.get_task(tid)
+        if t is None:
+            return "??"
+        s = "#" + str(t["id"]) + " " + t["title"]
+        if t["priority"] == 1:
+            s = s + " [niedrig]"
+        elif t["priority"] == 2:
+            s = s + " [mittel]"
+        elif t["priority"] == 3:
+            s = s + " [hoch]"
+        s = s + " (" + t["status"] + ")"
+        return s
+
+    def find_overdue(self):
+        r = []
+        for k in self.db.all_tasks():
+            t = self.db.all_tasks()[k]
+            if t.get("due") is None:
+                continue
+            if t["status"] == "done" or t["status"] == "cancelled":
+                continue
+            try:
+                due = datetime.fromisoformat(t["due"])
+            except:
+                continue
+            if due < datetime.now():
+                r.append(t)
+        return r
+
+    def send_reminders(self):
+        overdue = self.find_overdue()
+        for t in overdue:
+            u = self.users.get_user(t["assignee"])
+            if u is None:
+                continue
+            if t["priority"] == 3:
+                self.notif.notify_urgent(
+                    u, "all", "Aufgabe ueberfaellig", "Die Aufgabe '" + t["title"] + "' ist ueberfaellig!"
+                )
+            elif t["priority"] == 2:
+                self.notif.notify(
+                    u, "both", "Aufgabe ueberfaellig", "Die Aufgabe '" + t["title"] + "' ist ueberfaellig."
+                )
+            else:
+                self.notif.notify(
+                    u, "email", "Aufgabe ueberfaellig", "Die Aufgabe '" + t["title"] + "' ist ueberfaellig."
+                )
+```
+
+### Nachher
+
+#### task_manager.py
+
+```python
+class TaskManager:
+
+    def __init__(
+        self,
+        database,
+        notification_center,
+        email_service,
+        user_manager,
+    ):
+        self.database = database
+        self.notification_center = notification_center
+        self.email_service = email_service
+        self.user_manager = user_manager
+```
+
+#### main.py
+
+```python
+from task_manager import TaskManager
+from task_repository import TaskRepository
+from notification_center import NotificationCenter
+from email_service import EmailService
+from user_manager import UserManager
+
+
+database = TaskRepository()
+notification_center = NotificationCenter()
+email_service = EmailService()
+user_manager = UserManager()
+
+task_manager = TaskManager(
+    database=database,
+    notification_center=notification_center,
+    email_service=email_service,
+    user_manager=user_manager,
+)
+```
+
+### Anpassungen im restlichen Projekt
+
+Alle bisherigen Stellen, an denen `TaskManager` ohne Parameter erzeugt wurde,
+
+```python
+task_manager = TaskManager()
+```
+
+werden ersetzt durch
+
+```python
+task_manager = TaskManager(
+    database,
+    notification_center,
+    email_service,
+    user_manager,
+)
+```
+
+Dadurch ist `TaskManager` nicht länger an konkrete Implementierungen gekoppelt.
+Für Tests können beispielsweise Mock-Implementierungen oder Test-Repositories übergeben werden, ohne die Klasse selbst ändern zu müssen.
+Ebenso können alternative Persistenz- oder Benachrichtigungssysteme integriert werden, ohne den bestehenden Code des `TaskManager` anzupassen.
+
+
 ## 3.2 Einsatz von mehreren Mustern (3)
 
 
