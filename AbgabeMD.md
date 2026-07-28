@@ -106,12 +106,6 @@
 
 ###  1.2.4 Interface Segregation Principle und Single Responsibility Principle bei `email_service.py` verletzt
 
-#### Interface Segregation Principle (ISP)
-
-- **Grund:** `report_generator.py` nutzt den `email_service.py` jedoch nur für `send`. Der `email_service.py` instanziiert jedoch alle Schnittstellen, egal ob SMS-Funktionen oder Push-Benachrichtigungen, und widerspricht somit der in den Vorlesungen aufgeführten Regel: *„Wenn ein Interface mehr Methoden hat, als ein Aufrufer braucht, entsteht eine unnötige Abhängigkeit.“*
-
-- **Wartbarkeit:** Änderungen an SMS- oder Push-Funktionen können Auswirkungen auf Komponenten haben, die ausschließlich E-Mails versenden. Dadurch entstehen unnötige Abhängigkeiten und der Wartungsaufwand steigt.
-
 #### Single Responsibility Principle (SRP)
 
 - **Grund:** Die Klasse heißt `EmailService` und sollte sich deshalb nur um E-Mails kümmern, übernimmt allerdings auch den Versand von SMS und Push-Benachrichtigungen.
@@ -707,6 +701,8 @@ class UserRepository(Database):
     def get_all(self):
         return self.data
 ```
+
+### 3.1.3 Single Responsibility Principle bei `database.py` verletzt
 
 ## 3.2 Einsatz von mehreren Mustern (3)
 
