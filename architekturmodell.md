@@ -55,7 +55,6 @@ subgraph Outbound["Outbound Adapters"]
     JsonTaskRepo["JsonTaskRepository"]
     JsonUserRepo["JsonUserRepository"]
 
-    NotificationService["NotificationService"]
     EmailNotifier["EmailNotifier"]
     SmsNotifier["SmsNotifier"]
     PushNotifier["PushNotifier"]
@@ -123,16 +122,8 @@ ReportUC --> ClockPort
 JsonTaskRepo -.-> TaskRepo
 JsonUserRepo -.-> UserRepo
 
-NotificationService -.-> NotificationPort
 SystemClock -.-> ClockPort
 ConsoleLogger -.-> LoggerPort
-
-%% ----------------------------
-%% Technische Abhängigkeiten
-%% ----------------------------
-NotificationService --> EmailNotifier
-NotificationService --> SmsNotifier
-NotificationService --> PushNotifier
 
 JsonTaskRepo --> JsonStore
 JsonUserRepo --> JsonStore
