@@ -1498,6 +1498,307 @@ class NotificationCenter:
         return self.notify(user, channel, "[URGENT] " + subject, body)
 ```
 
+### Umsetzung des Facade Patterns für die Datenbank
+
+Drei fachlich getrennte Facades für User, Tasks und Reports
+
+user_facade.py
+```python
+class UserFacade:
+    def __init__(self, user_manager):
+        self.user_manager = user_manager
+
+    def register_user(self, user_id, name, email, phone="", device=""):
+        return self.user_manager.create_user(
+            user_id,
+            name,
+            email,
+            phone,
+            device
+        )
+
+    def promote_to_admin(self, user_id):
+        return self.user_manager.make_admin(user_id)
+
+    def change_email(self, user_id, new_email):
+        return self.user_manager.change_email(user_id, new_email)
+```
+
+task_facade.py
+```python
+class TaskFacade:
+    def __init__(self, task_manager):
+        self.task_manager = task_manager
+
+    def create_and_notify(
+        self,
+        task_id,
+        title,
+        description,
+        priority,
+        assignee_id,
+        due_date=None,
+        notification_mode=1
+    ):
+        return self.task_manager.create_task(
+            task_id,
+            title,
+            description,
+            priority,
+            assignee_id,
+            due_date,
+            notification_mode
+        )
+
+    def change_status(self, task_id, new_status):
+        return self.task_manager.update_status(task_id, new_status)
+
+    def send_overdue_reminders(self):
+        return self.task_manager.send_reminders()
+
+    def get_formatted_tasks(self):
+        return [
+            self.task_manager.format_task(task_id)
+            for task_id in self.task_manager.all_tasks()
+        ]
+```
+
+```python
+class ReportFacade:
+    def __init__(self, report_generator):
+        self.report_generator = report_generator
+
+    def generate_daily_report(self):
+        return self.report_generator.daily_report()
+
+    def generate_weekly_report(self):
+        return self.report_generator.weekly_report()
+
+    def generate_monthly_report(self):
+        return self.report_generator.monthly_report()
+
+    def generate_and_send(self, report_type, recipient):
+        return self.report_generator.email_report(
+            report_type,
+            recipient
+        )
+```
+
+### Umsetzung des Command Patterns für Task Manager
+
+commands.py
+```python
+class TaskCommand(ABC):
+    @abstractmethod
+    def execute(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def undo(self):
+        raise NotImplementedError
+
+
+class CreateTaskCommand(TaskCommand):
+    def __init__(
+        self,
+        task_manager,
+        tid,
+        title,
+        desc,
+        prio,
+        assignee_id,
+        due=None,
+        mode=1,
+    ):
+        self.task_manager = task_manager
+        self.tid = tid
+        self.title = title
+        self.desc = desc
+        self.prio = prio
+        self.assignee_id = assignee_id
+        self.due = due
+        self.mode = mode
+
+        self.executed = False
+
+    def execute(self):
+        self.executed = self.task_manager.create_task(
+            self.tid,
+            self.title,
+            self.desc,
+            self.prio,
+            self.assignee_id,
+            self.due,
+            self.mode,
+        )
+
+        return self.executed
+
+    def undo(self):
+        if not self.executed:
+            return False
+
+        undone = self.task_manager.delete_task(self.tid)
+
+        if undone:
+            self.executed = False
+
+        return undone
+
+
+class UpdateTaskStatusCommand(TaskCommand):
+    def __init__(self, task_manager, tid, new_status):
+        self.task_manager = task_manager
+        self.tid = tid
+        self.new_status = new_status
+
+        self.previous_status = None
+        self.executed = False
+
+    def execute(self):
+        task = self.task_manager.get_task(self.tid)
+
+        if task is None:
+            return False
+
+        self.previous_status = task["status"]
+
+        self.executed = self.task_manager.update_status(
+            self.tid,
+            self.new_status,
+        )
+
+        return self.executed
+
+    def undo(self):
+        if not self.executed or self.previous_status is None:
+            return False
+
+        undone = self.task_manager.update_status(
+            self.tid,
+            self.previous_status,
+        )
+
+        if undone:
+            self.executed = False
+
+        return undone
+
+
+class DeleteTaskCommand(TaskCommand):
+    def __init__(self, task_manager, tid):
+        self.task_manager = task_manager
+        self.tid = tid
+
+        self.deleted_task = None
+        self.executed = False
+
+    def execute(self):
+        task = self.task_manager.get_task(self.tid)
+
+        if task is None:
+            return False
+
+        self.deleted_task = deepcopy(task)
+
+        self.executed = self.task_manager.delete_task(self.tid)
+
+        return self.executed
+
+    def undo(self):
+        if not self.executed or self.deleted_task is None:
+            return False
+
+        restored = self.task_manager.restore_task(
+            self.deleted_task
+        )
+
+        if restored:
+            self.executed = False
+
+        return restored
+
+
+class TaskCommandInvoker:
+    def __init__(self):
+        self._history = []
+
+    def execute(self, command):
+        successful = command.execute()
+
+        if successful:
+            self._history.append(command)
+
+            log_info(
+                "Command executed: "
+                + command.__class__.__name__
+            )
+
+        return successful
+
+    def undo_last(self):
+        if not self._history:
+            log_warning("No Command to undo")
+            return False
+
+        command = self._history.pop()
+        successful = command.undo()
+
+        if successful:
+            log_info(
+                "Command undone: "
+                + command.__class__.__name__
+            )
+        else:
+            self._history.append(command)
+
+        return successful
+```
+
+task_manager.py
+```python
+class TaskManager:
+
+    # ...
+
+    def delete_task(self, tid):
+        t = self.db.get_task(tid)
+
+        if t is None:
+            return False
+
+        self.db.delete_task(tid)
+
+        log_warning(
+            "Task " + str(tid) + " geloescht"
+        )
+
+        return True
+
+    def restore_task(self, task):
+        if task is None or "id" not in task:
+            log_error(
+                "Task kann nicht wiederhergestellt werden"
+            )
+            return False
+
+        restored = self.db.save_task(
+            task["id"],
+            task,
+        )
+
+        if restored:
+            log_info(
+                "Task "
+                + str(task["id"])
+                + " wiederhergestellt"
+            )
+
+        return restored
+
+    def get_task(self, tid):
+        return self.db.get_task(tid)
+```
 
 ## 3.3 ADRs für Refactoring anhand SOLID-korrektur und Patterns
 # ADR-001: Einführung einer hexagonalen Architektur
