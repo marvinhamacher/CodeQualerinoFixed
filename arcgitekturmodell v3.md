@@ -85,9 +85,9 @@ Task --> TaskStatus
 Task --> User
 User --> NotificationChannel
 
-TaskUC --> DatabaseFacade
-UserUC --> DatabaseFacade
-ReportUC --> DatabaseFacade
+TaskUC --> TaskFacade
+UserUC --> UserFacade
+ReportUC --> ReportFacade
 
 TaskFacade --> TaskRepo
 UserFacade --> UserRepo
