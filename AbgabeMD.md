@@ -2006,11 +2006,241 @@ Diese Variante wurde verworfen, da sie die Application-Schicht an konkrete Imple
 
 ## 3.4 Neue Features (3)
 
+In der Aufgabe steht für die Umsetzung neuer Features explizit "ohne Änderung bestehender Klassen". 
+Somit sind alle Features aufs Originalprojekt bezogen, ohne den einbezug der oben genannten Refactorings.
+
+### 3.4.1 Historisierung von Tasks
+
+Da Tasks einen direkten Zugriff auf User haben müssen Daten zur langfristigen Analytik anonymisiert werden.
+Dafür eignet sich ein Historisierungsservice
+
+In der Database befinden sich alle Methoden die wir benötigen um Tasks zu historisieren
+```python
+# SCHICHT: Infrastruktur — Persistenz
+
+import json
+import os
+from logger import log, log_error
+from config import DB_FILE, USER_FILE
 
 
+class Database:
+    def __init__(self):
+        self.d = {}
+        self.u = {}
+        os.makedirs(os.path.dirname(DB_FILE), exist_ok=True)
+        self.load()
+
+    def load(self):
+        if os.path.exists(DB_FILE):
+            f = open(DB_FILE, "r")
+            try:
+                self.d = json.loads(f.read())
+            except:
+                log_error("Konnte tasks.json nicht laden")
+                self.d = {}
+            f.close()
+        else:
+            self.d = {}
+
+        if os.path.exists(USER_FILE):
+            f = open(USER_FILE, "r")
+            try:
+                self.u = json.loads(f.read())
+            except:
+                log_error("Konnte users.json nicht laden")
+                self.u = {}
+            f.close()
+        else:
+            self.u = {}
+
+    def save(self):
+        f = open(DB_FILE, "w")
+        f.write(json.dumps(self.d))
+        f.close()
+        f = open(USER_FILE, "w")
+        f.write(json.dumps(self.u))
+        f.close()
+        log("Gespeichert")
+
+    # Tasks
+    def get_task(self, tid):
+        if str(tid) in self.d:
+            return self.d[str(tid)]
+        return None
+
+    def save_task(self, tid, task):
+        if task.get("title") is None or task.get("title") == "":
+            log_error("Task ohne Titel kann nicht gespeichert werden")
+            return False
+        if task.get("priority", 0) < 1 or task.get("priority", 0) > 3:
+            log_error("Ungueltige Prioritaet")
+            return False
+        self.d[str(tid)] = task
+        self.save()
+        return True
+
+    def delete_task(self, tid):
+        if str(tid) in self.d:
+            del self.d[str(tid)]
+            self.save()
+
+    def all_tasks(self):
+        return self.d
+
+    # Users
+    def get_user(self, uid):
+        if str(uid) in self.u:
+            return self.u[str(uid)]
+        return None
+
+    def save_user(self, uid, user):
+        if user.get("name") is None or user.get("name") == "":
+            log_error("User ohne Name kann nicht gespeichert werden")
+            return False
+        self.u[str(uid)] = user
+        self.save()
+        return True
+
+    def delete_user(self, uid):
+        if str(uid) in self.u:
+            del self.u[str(uid)]
+            self.save()
+
+    def all_users(self):
+        return self.u
 
 
+```
+
+```
+HistoryService
+HistoryRepository
+```
+
+Der `HistoryService` übernimmt dabei die Geschäftslogik:
+
+- Laden der Aufgabe
+- Anonymisieren personenbezogener Daten
+- Übergabe an das Repository
+
+```python
+import json
+import os
+
+from logger import log, log_error
+from config import HISTORY_FILE
 
 
+class HistoryRepository:
+
+    def __init__(self):
+        self.history = {}
+
+        os.makedirs(os.path.dirname(HISTORY_FILE), exist_ok=True)
+
+        self.load()
+
+    def load(self):
+        if os.path.exists(HISTORY_FILE):
+            try:
+                with open(HISTORY_FILE, "r") as file:
+                    self.history = json.load(file)
+            except Exception:
+                log_error("Konnte history.json nicht laden")
+                self.history = {}
+
+    def save(self):
+        with open(HISTORY_FILE, "w") as file:
+            json.dump(self.history, file)
+
+        log("Historie gespeichert")
+
+    def save_task(self, task):
+        self.history[str(task["id"])] = task
+        self.save()
+
+    def get_task(self, task_id):
+        return self.history.get(str(task_id))
+
+    def all_tasks(self):
+        return self.history
+```
+
+history_service.py
+```python
+from copy import deepcopy
+
+from database import Database
+from history_repository import HistoryRepository
 
 
+class HistoryService:
+
+    def __init__(self):
+        self.database = Database()
+        self.repository = HistoryRepository()
+
+    def archive_task(self, task_id):
+        task = self.database.get_task(task_id)
+
+        if task is None:
+            return False
+
+        history_entry = deepcopy(task)
+
+        history_entry.pop("assignee", None)
+
+        self.repository.save_task(history_entry)
+
+        return True
+
+    def archive_completed_tasks(self):
+        for task in self.database.all_tasks().values():
+            if task["status"] == "done":
+                self.archive_task(task["id"])
+```
+
+Das `HistoryRepository` ist ausschließlich für die Persistierung der anonymisierten Historie in `history.json` verantwortlich.
+```python
+import json
+import os
+
+from logger import log, log_error
+from config import HISTORY_FILE
+
+
+class HistoryRepository:
+
+    def __init__(self):
+        self.history = {}
+
+        os.makedirs(os.path.dirname(HISTORY_FILE), exist_ok=True)
+
+        self.load()
+
+    def load(self):
+        if os.path.exists(HISTORY_FILE):
+            try:
+                with open(HISTORY_FILE, "r") as file:
+                    self.history = json.load(file)
+            except Exception:
+                log_error("Konnte history.json nicht laden")
+                self.history = {}
+
+    def save(self):
+        with open(HISTORY_FILE, "w") as file:
+            json.dump(self.history, file)
+
+        log("Historie gespeichert")
+
+    def save_task(self, task):
+        self.history[str(task["id"])] = task
+        self.save()
+
+    def get_task(self, task_id):
+        return self.history.get(str(task_id))
+
+    def all_tasks(self):
+        return self.history
+```
