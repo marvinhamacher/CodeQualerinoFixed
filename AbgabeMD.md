@@ -2244,3 +2244,21 @@ class HistoryRepository:
     def all_tasks(self):
         return self.history
 ```
+
+### Anpassungen im restlichen Projekt
+
+Die Historisierung wird vollständig unabhängig von der bestehenden Geschäftslogik implementiert. An keiner Stelle müssen Klassen wie `TaskManager`, `Database`, `NotificationCenter` oder `ReportGenerator` verändert werden.
+
+Die Verwendung erfolgt beispielsweise über
+
+```python
+history = HistoryService()
+
+history.archive_task(5)
+```
+
+oder
+
+```python
+history.archive_completed_tasks()
+```
