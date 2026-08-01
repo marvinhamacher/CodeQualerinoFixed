@@ -27,6 +27,7 @@ subgraph App["Application"]
     subgraph OutputPorts["Output Ports"]
         TaskRepo["TaskRepository"]
         UserRepo["UserRepository"]
+        ReportRepo["ReportRepository"]
         NotificationPort["NotificationPort"]
         ClockPort["ClockPort"]
     end
@@ -91,6 +92,7 @@ ReportUC --> ReportFacade
 
 TaskFacade --> TaskRepo
 UserFacade --> UserRepo
+ReportFacade --> ReportRepo
 
 TaskUC --> NotificationPort
 TaskUC --> ClockPort
