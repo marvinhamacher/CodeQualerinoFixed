@@ -2167,7 +2167,8 @@ class HistoryRepository:
         return self.history
 ```
 
-history_service.py
+Der `history_service.py` kümmert sich überwiegend um das laden eines bestimmten Task. Ebenfalls entfernt der Service
+den Assigne somit besteht rückwirkend keine referenz mehr auf private Daten.
 ```python
 from copy import deepcopy
 
@@ -2183,14 +2184,11 @@ class HistoryService:
 
     def archive_task(self, task_id):
         task = self.database.get_task(task_id)
-
         if task is None:
             return False
 
         history_entry = deepcopy(task)
-
         history_entry.pop("assignee", None)
-
         self.repository.save_task(history_entry)
 
         return True
@@ -2214,9 +2212,7 @@ class HistoryRepository:
 
     def __init__(self):
         self.history = {}
-
         os.makedirs(os.path.dirname(HISTORY_FILE), exist_ok=True)
-
         self.load()
 
     def load(self):
