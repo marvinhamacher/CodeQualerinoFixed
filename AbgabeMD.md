@@ -2257,7 +2257,7 @@ oder
 history.archive_completed_tasks()
 ```
 
-### Datei Export
+### 3.4.2 Export von Dateien
 Um Daten für Nutzer und externe Systeme bereitszustellen wird eine Export Möglichkeit eingeführt.
 
 Die ExportEntity enthält die Daten, die exportiert werden sollen. Das ExportEntity wird an den Exporter übergeben, wodurch der Exporter nicht für alle Modelle des Systems bescheid wissen muss.
