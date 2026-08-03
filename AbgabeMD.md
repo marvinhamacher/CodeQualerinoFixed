@@ -2491,9 +2491,13 @@ service.exportToFile(entity, "csv", "tasks.csv");
 service.exportToFile(entity, "json", "tasks.json");
 service.exportToFile(entity, "txt", "tasks.txt");
 ```
-### Authentifizierungs Service
+### 3.4.3 Authentifizierungs Service
 
-models.py
+Stand jetzt befindet sich im System kein Authsystem. 
+In der Regel wird mit Salting und Hashing gearbeitet, um das umzusetzen wird die Bibliothek `` verwendet.
+Ähnlich wie der Rest der DB-Struktur findet die Speicherung aller information auf Basis von JSON statt.
+
+Die `models.py` beinhaltet alle Datenentitäten wie `AuthenticatedUser` , `Session` und `AuthenticationResult`
 ```python
 @dataclass(frozen=True)
 class AuthenticatedUser:
@@ -2516,6 +2520,22 @@ class AuthenticationResult:
     error: Optional[str] = None
 ```
 
+
+Der `AuthService` kümmert sich um:
+- Passwort, Session und Hashanforderungen
+- Die Verwaltung des `JsonCredentialStore`
+- Nutzerregistierung und Anmeldung
+
+Alle Nutzer sind anhand des JSON Formats 
+`
+  normalized_username,
+      {
+       "user_id": str(user_id),
+       "salt": self._encode(salt),
+       "password_hash": self._encode(password_hash),
+       "hash_iterations": self.HASH_ITERATIONS,
+`    
+abgebildet. Somit befindet sich der Hash und Salt an derselben Stelle.
 ```python
 class AuthService:
     HASH_ITERATIONS = 210_000
@@ -2647,8 +2667,12 @@ class AuthService:
     def _decode(value: str) -> bytes:
         return base64.b64decode(value.encode("ascii"), validate=True)
 ```
+In der Theorie kann der Hashingprozess und das Sessionmanagement auch in einen eigenen Service stattfinden, 
+um so SRP-Verletzungen zu vermeiden.
+Zur veranschaulichung wurde das jedoch nicht getan.
 
-storage.py
+Der `storage.py` beinhaltet den `JsonCredentialStore` dieser kann ähnlich wie `Database.py` Entitäten löschen, 
+holen und erstellen.
 ```python
 class JsonCredentialStore:
     def __init__(self, file_path: str = "data/auth_users.json"):
