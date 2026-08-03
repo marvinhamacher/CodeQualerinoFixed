@@ -2243,7 +2243,7 @@ class HistoryRepository:
 
 Die Historisierung wird vollständig unabhängig von der bestehenden Geschäftslogik implementiert. An keiner Stelle müssen Klassen wie `TaskManager`, `Database`, `NotificationCenter` oder `ReportGenerator` verändert werden.
 
-Die Verwendung erfolgt beispielsweise über
+Die Verwendung erfolgt beispielsweise über:
 
 ```python
 history = HistoryService()
@@ -2255,4 +2255,239 @@ oder
 
 ```python
 history.archive_completed_tasks()
+```
+
+### Datei Export
+Um Daten für Nutzer und externe Systeme bereitszustellen wird eine Export Möglichkeit eingeführt.
+
+Die ExportEntity enthält die Daten, die exportiert werden sollen. Das ExportEntity wird an den Exporter übergeben, wodurch der Exporter nicht für alle Modelle des Systems bescheid wissen muss.
+
+entities.py
+```python
+T = TypeVar("T")
+Row = Dict[str, Any]
+RowMapper = Callable[[T], Mapping[str, Any]]
+@dataclass(frozen=True)
+class ExportEntity(Generic[T]):
+    name: str
+    items: Iterable[T]
+    fields: Optional[List[str]] = None
+    row_mapper: Optional[RowMapper[T]] = None
+
+    def rows(self) -> List[Row]:
+        rows = [self._to_row(item) for item in self.items]
+
+        if self.fields is None:
+            return rows
+
+        return [
+            {field: row.get(field) for field in self.fields}
+            for row in rows
+        ]
+
+    def _to_row(self, item: T) -> Row:
+        if self.row_mapper is not None:
+            return dict(self.row_mapper(item))
+
+        if isinstance(item, Mapping):
+            return dict(item)
+
+        if is_dataclass(item) and not isinstance(item, type):
+            return asdict(item)
+
+        if hasattr(item, "__dict__"):
+            return {
+                key: value
+                for key, value in vars(item).items()
+                if not key.startswith("_")
+            }
+
+        raise TypeError(
+            "ExportEntity supports Mapping-, Dataclass- and Object instances. "
+            "For other types row_mapper has to be set."
+        )
+
+```
+
+Der ExportService ist die Schnittstelle für den Export. Er verwaltet alle verfügbaren Exporter und entscheidet anhand des Formats, welcher verwendet wird.
+export_service.py
+```python
+T = TypeVar("T")
+class ExportService(Generic[T]):
+    def __init__(self, exporters: Optional[Iterable[Exporter[T]]] = None):
+        self._exporters: Dict[str, Exporter[T]] = {}
+        for exporter in exporters or []:
+            self.register(exporter)
+
+    def register(self, exporter: Exporter[T]) -> None:
+        self._exporters[exporter.format_name.lower()] = exporter
+
+    def available_formats(self):
+        return tuple(sorted(self._exporters.keys()))
+
+    def export_to_string(self, entity: ExportEntity[T], export_format: str) -> str:
+        exporter = self._get_exporter(export_format)
+        return exporter.serialize(entity)
+
+    def export_to_file(
+        self,
+        entity: ExportEntity[T],
+        export_format: str,
+        output_directory: str = "exports",
+        filename: Optional[str] = None,
+    ) -> Path:
+        exporter = self._get_exporter(export_format)
+        directory = Path(output_directory)
+        directory.mkdir(parents=True, exist_ok=True)
+
+        safe_name = sanitize_filename(filename or entity.name)
+        path = directory / (safe_name + exporter.file_extension)
+        path.write_text(exporter.serialize(entity), encoding="utf-8", newline="")
+        return path
+
+    def _get_exporter(self, export_format: str) -> Exporter[T]:
+        normalized_format = export_format.lower().lstrip(".")
+        try:
+            return self._exporters[normalized_format]
+        except KeyError as error:
+            available = ", ".join(self.available_formats()) or "none"
+            raise ValueError(
+                "Unknown Exportformat '"
+                + export_format
+                + "'. Available: "
+                + available
+            ) from error
+
+```
+
+Exporter ist eine abstrakte Basisklasse, die die gemeinsame Export-Schnittstelle vorgibt. Spezifische Exporter wie CsvExporter, JsonExporter oder TxtExporter erben von dieser Basisklasse und implementieren die Exportlogik für ihr jeweiliges Dateiformat.
+
+exporters.py
+```python
+T = TypeVar("T")
+class Exporter(ABC, Generic[T]):
+    @property
+    @abstractmethod
+    def format_name(self) -> str:
+        ...
+
+    @property
+    @abstractmethod
+    def file_extension(self) -> str:
+        ...
+
+    @abstractmethod
+    def serialize(self, entity: ExportEntity[T]) -> str:
+        ...
+
+
+class JsonExporter(Exporter[T]):
+    @property
+    def format_name(self) -> str:
+        return "json"
+
+    @property
+    def file_extension(self) -> str:
+        return ".json"
+
+    def serialize(self, entity: ExportEntity[T]) -> str:
+        return json.dumps(
+            entity.rows(),
+            ensure_ascii=False,
+            indent=2,
+            default=str,
+        )
+
+
+class CsvExporter(Exporter[T]):
+    def __init__(self, delimiter: str = ";"):
+        self.delimiter = delimiter
+
+    @property
+    def format_name(self) -> str:
+        return "csv"
+
+    @property
+    def file_extension(self) -> str:
+        return ".csv"
+
+    def serialize(self, entity: ExportEntity[T]) -> str:
+        rows = entity.rows()
+        if not rows:
+            return ""
+
+        fieldnames = entity.fields or self._collect_fieldnames(rows)
+        output = StringIO(newline="")
+        writer = csv.DictWriter(
+            output,
+            fieldnames=fieldnames,
+            delimiter=self.delimiter,
+            extrasaction="ignore",
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+        return output.getvalue()
+
+    @staticmethod
+    def _collect_fieldnames(rows: List[Dict[str, Any]]) -> List[str]:
+        result: List[str] = []
+        for row in rows:
+            for field in row:
+                if field not in result:
+                    result.append(field)
+        return result
+
+
+class TxtExporter(Exporter[T]):
+    def __init__(self, separator: str = " | "):
+        self.separator = separator
+
+    @property
+    def format_name(self) -> str:
+        return "txt"
+
+    @property
+    def file_extension(self) -> str:
+        return ".txt"
+
+    def serialize(self, entity: ExportEntity[T]) -> str:
+        rows = entity.rows()
+        if not rows:
+            return ""
+
+        fields = entity.fields or CsvExporter._collect_fieldnames(rows)
+        lines = [self.separator.join(fields)]
+        lines.append(self.separator.join("-" * len(field) for field in fields))
+
+        for row in rows:
+            lines.append(
+                self.separator.join(self._stringify(row.get(field)) for field in fields)
+            )
+
+        return "\n".join(lines) + "\n"
+
+    @staticmethod
+    def _stringify(value: Any) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, (dict, list, tuple, set)):
+            return json.dumps(value, ensure_ascii=False, default=str)
+        return str(value)
+```
+
+Der Export wird als separates Package implementiert und ist unabhängig von der bestehenden Geschäftslogik.
+
+Die Verwendung erfolgt beispielsweise über:
+```python
+ExportService<Task> service = new ExportService<>();
+
+service.registerExporter("csv", new CsvExporter<>());
+service.registerExporter("json", new JsonExporter<>());
+service.registerExporter("txt", new TxtExporter<>());
+
+ExportEntity<Task> entity = new ExportEntity<>(tasks);
+
+service.exportToFile(entity, "csv", "tasks.csv");
+service.exportToFile(entity, "json", "tasks.json");
+service.exportToFile(entity, "txt", "tasks.txt");
 ```
