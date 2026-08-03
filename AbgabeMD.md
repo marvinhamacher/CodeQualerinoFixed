@@ -2491,3 +2491,213 @@ service.exportToFile(entity, "csv", "tasks.csv");
 service.exportToFile(entity, "json", "tasks.json");
 service.exportToFile(entity, "txt", "tasks.txt");
 ```
+### Authentifizierungs Service
+
+models.py
+```python
+@dataclass(frozen=True)
+class AuthenticatedUser:
+    user_id: str
+    username: str
+
+
+@dataclass(frozen=True)
+class Session:
+    token: str
+    user: AuthenticatedUser
+    created_at: datetime
+    expires_at: datetime
+
+
+@dataclass(frozen=True)
+class AuthenticationResult:
+    success: bool
+    session: Optional[Session] = None
+    error: Optional[str] = None
+```
+
+```python
+class AuthService:
+    HASH_ITERATIONS = 210_000
+    MIN_PASSWORD_LENGTH = 8
+
+    def __init__(
+        self,
+        credential_store: Optional[JsonCredentialStore] = None,
+        session_lifetime_minutes: int = 30,
+    ):
+        if session_lifetime_minutes <= 0:
+            raise ValueError("session_lifetime_minutes has to be greater than 0")
+
+        self.credential_store = credential_store or JsonCredentialStore()
+        self.session_lifetime = timedelta(minutes=session_lifetime_minutes)
+        self._sessions: Dict[str, Session] = {}
+
+    def register(self, user_id, username: str, password: str) -> bool:
+        normalized_username = self._normalize_username(username)
+        self._validate_password(password)
+
+        if self.credential_store.get(normalized_username) is not None:
+            return False
+
+        salt = secrets.token_bytes(16)
+        password_hash = self._hash_password(password, salt)
+        self.credential_store.save(
+            normalized_username,
+            {
+                "user_id": str(user_id),
+                "salt": self._encode(salt),
+                "password_hash": self._encode(password_hash),
+                "hash_iterations": self.HASH_ITERATIONS,
+            },
+        )
+        return True
+
+    def authenticate(self, username: str, password: str) -> AuthenticationResult:
+        try:
+            normalized_username = self._normalize_username(username)
+        except ValueError:
+            return AuthenticationResult(False, error="Invalid authdata")
+
+        credential = self.credential_store.get(normalized_username)
+        if credential is None:
+            return AuthenticationResult(False, error="Invalid authdata")
+
+        try:
+            salt = self._decode(credential["salt"])
+            expected_hash = self._decode(credential["password_hash"])
+            iterations = int(
+                credential.get("hash_iterations", self.HASH_ITERATIONS)
+            )
+        except (KeyError, TypeError, ValueError):
+            return AuthenticationResult(False, error="Credentialdata is corrupt")
+
+        actual_hash = self._hash_password(password, salt, iterations)
+        if not hmac.compare_digest(actual_hash, expected_hash):
+            return AuthenticationResult(False, error="Invalid authdata")
+
+        session = self._create_session(
+            AuthenticatedUser(
+                user_id=str(credential["user_id"]),
+                username=normalized_username,
+            )
+        )
+        return AuthenticationResult(True, session=session)
+
+    def get_user(self, token: str) -> Optional[AuthenticatedUser]:
+        if not token:
+            return None
+
+        session = self._sessions.get(token)
+        if session is None:
+            return None
+        if session.expires_at <= datetime.now(timezone.utc):
+            del self._sessions[token]
+            return None
+        return session.user
+
+    def is_authenticated(self, token: str) -> bool:
+        return self.get_user(token) is not None
+
+    def logout(self, token: str) -> bool:
+        return self._sessions.pop(token, None) is not None
+
+    def _create_session(self, user: AuthenticatedUser) -> Session:
+        now = datetime.now(timezone.utc)
+        session = Session(
+            token=secrets.token_urlsafe(32),
+            user=user,
+            created_at=now,
+            expires_at=now + self.session_lifetime,
+        )
+        self._sessions[session.token] = session
+        return session
+
+    @classmethod
+    def _hash_password(
+        cls, password: str, salt: bytes, iterations: Optional[int] = None
+    ) -> bytes:
+        return hashlib.pbkdf2_hmac(
+            "sha256",
+            password.encode("utf-8"),
+            salt,
+            iterations or cls.HASH_ITERATIONS,
+        )
+
+    @staticmethod
+    def _normalize_username(username: str) -> str:
+        if not isinstance(username, str) or not username.strip():
+            raise ValueError("username cant be empty")
+        return username.strip().lower()
+
+    @classmethod
+    def _validate_password(cls, password: str) -> None:
+        if not isinstance(password, str) or len(password) < cls.MIN_PASSWORD_LENGTH:
+            raise ValueError(
+                "Password has to be at least "
+                + str(cls.MIN_PASSWORD_LENGTH)
+                + " symbols long"
+            )
+
+    @staticmethod
+    def _encode(value: bytes) -> str:
+        return base64.b64encode(value).decode("ascii")
+
+    @staticmethod
+    def _decode(value: str) -> bytes:
+        return base64.b64decode(value.encode("ascii"), validate=True)
+```
+
+storage.py
+```python
+class JsonCredentialStore:
+    def __init__(self, file_path: str = "data/auth_users.json"):
+        self.file_path = Path(file_path)
+        self.file_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def get(self, username: str) -> Optional[dict]:
+        return self._read_all().get(username)
+
+    def save(self, username: str, credential: dict) -> None:
+        credentials = self._read_all()
+        credentials[username] = credential
+        self._write_all(credentials)
+
+    def _read_all(self) -> Dict[str, dict]:
+        if not self.file_path.exists():
+            return {}
+
+        try:
+            with self.file_path.open("r", encoding="utf-8") as file:
+                data = json.load(file)
+        except (OSError, json.JSONDecodeError) as exc:
+            raise RuntimeError(
+                "failed to read credentials file: "
+                + str(self.file_path)
+            ) from exc
+
+        if not isinstance(data, dict):
+            raise RuntimeError("Creadentials file has invalid format")
+        return data
+
+    def _write_all(self, credentials: Dict[str, dict]) -> None:
+        temp_name = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=str(self.file_path.parent),
+                delete=False,
+            ) as temp_file:
+                temp_name = temp_file.name
+                json.dump(credentials, temp_file, indent=2, sort_keys=True)
+            os.replace(temp_name, self.file_path)
+        except OSError as exc:
+            if temp_name and os.path.exists(temp_name):
+                os.unlink(temp_name)
+            raise RuntimeError(
+                "failed to save credentials file: "
+                + str(self.file_path)
+            ) from exc
+
+```
