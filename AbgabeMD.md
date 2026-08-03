@@ -2014,10 +2014,8 @@ Somit sind alle Features aufs Originalprojekt bezogen, ohne den einbezug der obe
 Da Tasks einen direkten Zugriff auf User haben müssen Daten zur langfristigen Analytik anonymisiert werden.
 Dafür eignet sich ein Historisierungsservice
 
-In der Database befinden sich alle Methoden die wir benötigen um Tasks zu historisieren
+In der Database befinden sich alle Methoden die benötigt werden um Tasks zu historisieren
 ```python
-# SCHICHT: Infrastruktur — Persistenz
-
 import json
 import os
 from logger import log, log_error
