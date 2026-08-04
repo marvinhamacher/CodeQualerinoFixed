@@ -2520,13 +2520,111 @@ class AuthenticationResult:
     error: Optional[str] = None
 ```
 
+Jedes moderne Authsystem verarbeitet Passwörter anhand von Hashing.
+Der `HashService` implementiert:
+- statische Funktionen zum Ver und Entschlüsseln von Texteingaben
+- Methoden zur Passwortverifizierung
+- Methoden zur errechnung neuer hashes
+```python
+import base64
+import hashlib
+import hmac
+import secrets
 
-Der `AuthService` kümmert sich um:
-- Passwort, Session und Hashanforderungen
-- Die Verwaltung des `JsonCredentialStore`
-- Nutzerregistierung und Anmeldung
 
-Alle Nutzer sind anhand des JSON Formats 
+class HashingService:
+    HASH_ITERATIONS = 210_000
+
+    def create_password(self, password: str) -> tuple[str, str, int]:
+        salt = secrets.token_bytes(16)
+        password_hash = self._hash(password, salt)
+
+        return (
+            self._encode(salt),
+            self._encode(password_hash),
+            self.HASH_ITERATIONS,
+        )
+
+    def verify_password(
+        self,
+        password: str,
+        encoded_salt: str,
+        encoded_hash: str,
+        iterations: int,
+    ) -> bool:
+        salt = self._decode(encoded_salt)
+        expected_hash = self._decode(encoded_hash)
+        actual_hash = self._hash(password, salt, iterations)
+
+        return hmac.compare_digest(actual_hash, expected_hash)
+
+    @classmethod
+    def _hash(cls, password: str, salt: bytes, iterations=None) -> bytes:
+        return hashlib.pbkdf2_hmac(
+            "sha256",
+            password.encode("utf-8"),
+            salt,
+            iterations or cls.HASH_ITERATIONS,
+        )
+
+    @staticmethod
+    def _encode(value: bytes) -> str:
+        return base64.b64encode(value).decode("ascii")
+
+    @staticmethod
+    def _decode(value: str) -> bytes:
+        return base64.b64decode(value.encode("ascii"), validate=True)
+
+
+```
+
+Das `SessionManagementService` kümmert sich um das Verwalten von Nutzersessions anhand von Tokens. 
+Dabei werden sessions anhand von Tokens gespeichert. Auch die kernlogik von Logouts werden hier umgesetzt. 
+Schließlich muss der vergebene Token verschwinden, wenn ein Nutzer sich abmelden will. 
+```python
+from datetime import datetime, timedelta, timezone
+import secrets
+
+
+class SessionManagementService:
+
+    def __init__(self, session_lifetime_minutes=30):
+        self.session_lifetime = timedelta(minutes=session_lifetime_minutes)
+        self._sessions = {}
+
+    def create_session(self, user: AuthenticatedUser) -> Session:
+        now = datetime.now(timezone.utc)
+
+        session = Session(
+            token=secrets.token_urlsafe(32),
+            user=user,
+            created_at=now,
+            expires_at=now + self.session_lifetime,
+        )
+
+        self._sessions[session.token] = session
+        return session
+
+    def get_user(self, token: str):
+        session = self._sessions.get(token)
+
+        if session is None:
+            return None
+
+        if session.expires_at <= datetime.now(timezone.utc):
+            del self._sessions[token]
+            return None
+
+        return session.user
+
+    def logout(self, token: str) -> bool:
+        return self._sessions.pop(token, None) is not None
+
+    def is_authenticated(self, token: str) -> bool:
+        return self.get_user(token) is not None
+```
+
+Alle Nutzer sind anhand des JSON Formats abgebildet
 `
   normalized_username,
       {
@@ -2537,135 +2635,111 @@ Alle Nutzer sind anhand des JSON Formats
 `    
 abgebildet. Somit befindet sich der Hash und Salt an derselben Stelle.
 ```python
+from .models import (
+    AuthenticatedUser,
+    AuthenticationResult,
+)
+
+from .hashing_service import HashingService
+from .session_management_service import SessionManagementService
+from .json_credential_store import JsonCredentialStore
+
 class AuthService:
-    HASH_ITERATIONS = 210_000
+
     MIN_PASSWORD_LENGTH = 8
 
     def __init__(
         self,
-        credential_store: Optional[JsonCredentialStore] = None,
-        session_lifetime_minutes: int = 30,
+        credential_store=None,
+        hashing_service=None,
+        session_service=None,
     ):
-        if session_lifetime_minutes <= 0:
-            raise ValueError("session_lifetime_minutes has to be greater than 0")
-
         self.credential_store = credential_store or JsonCredentialStore()
-        self.session_lifetime = timedelta(minutes=session_lifetime_minutes)
-        self._sessions: Dict[str, Session] = {}
+        self.hashing_service = hashing_service or HashingService()
+        self.session_service = session_service or SessionManagementService()
 
     def register(self, user_id, username: str, password: str) -> bool:
         normalized_username = self._normalize_username(username)
         self._validate_password(password)
 
-        if self.credential_store.get(normalized_username) is not None:
+        if self.credential_store.get(normalized_username):
             return False
 
-        salt = secrets.token_bytes(16)
-        password_hash = self._hash_password(password, salt)
+        salt, password_hash, iterations = (
+            self.hashing_service.create_password(password)
+        )
+
         self.credential_store.save(
             normalized_username,
             {
                 "user_id": str(user_id),
-                "salt": self._encode(salt),
-                "password_hash": self._encode(password_hash),
-                "hash_iterations": self.HASH_ITERATIONS,
+                "salt": salt,
+                "password_hash": password_hash,
+                "hash_iterations": iterations,
             },
         )
+
         return True
 
-    def authenticate(self, username: str, password: str) -> AuthenticationResult:
+    def authenticate(
+        self,
+        username: str,
+        password: str,
+    ) -> AuthenticationResult:
+
         try:
             normalized_username = self._normalize_username(username)
         except ValueError:
             return AuthenticationResult(False, error="Invalid authdata")
 
         credential = self.credential_store.get(normalized_username)
+
         if credential is None:
             return AuthenticationResult(False, error="Invalid authdata")
 
-        try:
-            salt = self._decode(credential["salt"])
-            expected_hash = self._decode(credential["password_hash"])
-            iterations = int(
-                credential.get("hash_iterations", self.HASH_ITERATIONS)
-            )
-        except (KeyError, TypeError, ValueError):
-            return AuthenticationResult(False, error="Credentialdata is corrupt")
+        valid = self.hashing_service.verify_password(
+            password,
+            credential["salt"],
+            credential["password_hash"],
+            credential.get(
+                "hash_iterations",
+                HashingService.HASH_ITERATIONS,
+            ),
+        )
 
-        actual_hash = self._hash_password(password, salt, iterations)
-        if not hmac.compare_digest(actual_hash, expected_hash):
+        if not valid:
             return AuthenticationResult(False, error="Invalid authdata")
 
-        session = self._create_session(
+        session = self.session_service.create_session(
             AuthenticatedUser(
-                user_id=str(credential["user_id"]),
+                user_id=credential["user_id"],
                 username=normalized_username,
             )
         )
+
         return AuthenticationResult(True, session=session)
 
-    def get_user(self, token: str) -> Optional[AuthenticatedUser]:
-        if not token:
-            return None
+    def get_user(self, token):
+        return self.session_service.get_user(token)
 
-        session = self._sessions.get(token)
-        if session is None:
-            return None
-        if session.expires_at <= datetime.now(timezone.utc):
-            del self._sessions[token]
-            return None
-        return session.user
+    def logout(self, token):
+        return self.session_service.logout(token)
 
-    def is_authenticated(self, token: str) -> bool:
-        return self.get_user(token) is not None
-
-    def logout(self, token: str) -> bool:
-        return self._sessions.pop(token, None) is not None
-
-    def _create_session(self, user: AuthenticatedUser) -> Session:
-        now = datetime.now(timezone.utc)
-        session = Session(
-            token=secrets.token_urlsafe(32),
-            user=user,
-            created_at=now,
-            expires_at=now + self.session_lifetime,
-        )
-        self._sessions[session.token] = session
-        return session
-
-    @classmethod
-    def _hash_password(
-        cls, password: str, salt: bytes, iterations: Optional[int] = None
-    ) -> bytes:
-        return hashlib.pbkdf2_hmac(
-            "sha256",
-            password.encode("utf-8"),
-            salt,
-            iterations or cls.HASH_ITERATIONS,
-        )
+    def is_authenticated(self, token):
+        return self.session_service.is_authenticated(token)
 
     @staticmethod
-    def _normalize_username(username: str) -> str:
+    def _normalize_username(username):
         if not isinstance(username, str) or not username.strip():
             raise ValueError("username cant be empty")
         return username.strip().lower()
 
     @classmethod
-    def _validate_password(cls, password: str) -> None:
+    def _validate_password(cls, password):
         if not isinstance(password, str) or len(password) < cls.MIN_PASSWORD_LENGTH:
             raise ValueError(
-                "Password has to be at least "
-                + str(cls.MIN_PASSWORD_LENGTH)
-                + " symbols long"
+                f"Password has to be at least {cls.MIN_PASSWORD_LENGTH} symbols long"
             )
-
-    @staticmethod
-    def _encode(value: bytes) -> str:
-        return base64.b64encode(value).decode("ascii")
-
-    @staticmethod
-    def _decode(value: str) -> bytes:
-        return base64.b64decode(value.encode("ascii"), validate=True)
 ```
 In der Theorie kann der Hashingprozess und das Sessionmanagement auch in einen eigenen Service stattfinden, 
 um so SRP-Verletzungen zu vermeiden.
