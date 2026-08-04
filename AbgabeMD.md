@@ -2745,10 +2745,6 @@ class AuthService:
                 f"Password has to be at least {cls.MIN_PASSWORD_LENGTH} symbols long"
             )
 ```
-In der Theorie kann der Hashingprozess und das Sessionmanagement auch in einen eigenen Service stattfinden, 
-um so SRP-Verletzungen zu vermeiden.
-Zur veranschaulichung wurde das jedoch nicht getan.
-
 Der `storage.py` beinhaltet den `JsonCredentialStore` dieser kann ähnlich wie `Database.py` Entitäten löschen, 
 holen und erstellen.
 ```python
