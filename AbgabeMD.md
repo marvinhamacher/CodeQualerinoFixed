@@ -2636,7 +2636,7 @@ Alle Nutzer sind anhand des JSON Formats abgebildet
 abgebildet. Somit befindet sich der Hash und Salt an derselben Stelle.
 
 
-Der Authservice implementiert alle zentralen An-/Abmelde sowie Registrierungsfunktionen. 
+Der `Authservice` implementiert alle zentralen An-/Abmelde sowie Registrierungsfunktionen. 
 Hierfür verwendet der Service alle oben genannten Dateien.
 ```python
 from .models import (
