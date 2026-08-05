@@ -2917,3 +2917,25 @@ def test_no_direct_database_or_infrastructure_use_in_entrypoints() -> None:
                     violations.append(f"{path}:{node.lineno} forbidden import {name}")
     assert not violations, "\n".join(violations)
 ```
+
+
+### Fakes
+
+Fake für Benachrichtigungen:
+
+fakes.py:
+```python
+@dataclass(slots=True)
+class SentNotification:
+    channel: NotificationChannel
+    destination: str
+    message: str
+
+
+@dataclass
+class FakeNotifier:
+    sent: list[SentNotification] = field(default_factory=list)
+
+    def send(self, channel: NotificationChannel, destination: str, message: str) -> None:
+        self.sent.append(SentNotification(channel, destination, message))
+```
