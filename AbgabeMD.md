@@ -306,11 +306,11 @@ class TaskManager:
 
     def create_task(self, task_id, title, description, priority, assignee_id, due=None):
         if not title:
-            log_error("Titel darf nicht leer sein")
+            log_error("Titel should not be empty")
             return False
 
         if priority not in (1, 2, 3):
-            log_error("Prioritaet muss zwischen 1 und 3 liegen")
+            log_error("Priority needs to be between 1 and 3")
             return False
 
         task = {
@@ -328,18 +328,18 @@ class TaskManager:
             return False
 
         self.created_task_count += 1
-        log_info(f"Task {task_id} erstellt (Anzahl: {self.created_task_count})")
+        log_info(f"Task {task_id} created (Amount: {self.created_task_count})")
         return True
 
     def update_status(self, task_id, new_status):
         task = self.database.get_task(task_id)
 
         if task is None:
-            log_error("Task nicht gefunden")
+            log_error("Task not found")
             return False
 
         if new_status not in ["new", "in_progress", "done", "cancelled"]:
-            log_error("Unbekannter Status")
+            log_error("unknown status")
             return False
 
         old_status = task["status"]
@@ -354,7 +354,7 @@ class TaskManager:
             return False
 
         self.database.delete_task(task_id)
-        log_warning(f"Task {task_id} geloescht")
+        log_warning(f"Task {task_id} deleted")
         return True
 
     def get_task(self, task_id):
@@ -602,7 +602,7 @@ class TaskRepository(Database):
                 with open(self.file_path, "r") as f:
                     self.data = json.loads(f.read())
             except Exception:
-                log_error("Konnte tasks.json nicht laden")
+                log_error("Failed while loading tasks.json")
                 self.data = {}
         else:
             self.data = {}
@@ -610,11 +610,11 @@ class TaskRepository(Database):
     def save(self, task_id=None, task=None):
         if task_id is not None and task is not None:
             if task.get("title") is None or task.get("title") == "":
-                log_error("Task ohne Titel kann nicht gespeichert werden")
+                log_error("Tasks with no title can not be saved")
                 return False
 
             if task.get("priority", 0) < 1 or task.get("priority", 0) > 3:
-                log_error("Ungueltige Prioritaet")
+                log_error("Invalid priority")
                 return False
 
             self.data[str(task_id)] = task
@@ -623,11 +623,11 @@ class TaskRepository(Database):
             with open(self.file_path, "w") as f:
                 f.write(json.dumps(self.data))
 
-            log("Tasks gespeichert")
+            log("Tasks saved")
             return True
 
         except Exception:
-            log_error("Tasks konnten nicht gespeichert werden")
+            log_error("Tasks could not be saved")
             return False
 
     def get(self, task_id):
@@ -644,7 +644,7 @@ class TaskRepository(Database):
 
 class UserRepository(Database):
     """
-    Verantwortlich für die Persistenz von Usern.
+    Responsible for the persistance of Users
     """
 
     def __init__(self):
@@ -656,7 +656,7 @@ class UserRepository(Database):
                 with open(self.file_path, "r") as f:
                     self.data = json.loads(f.read())
             except Exception:
-                log_error("Konnte users.json nicht laden")
+                log_error("Failed while loading users.json")
                 self.data = {}
         else:
             self.data = {}
@@ -664,7 +664,7 @@ class UserRepository(Database):
     def save(self, user_id=None, user=None):
         if user_id is not None and user is not None:
             if user.get("name") is None or user.get("name") == "":
-                log_error("User ohne Name kann nicht gespeichert werden")
+                log_error("User withouts names cannot be saved ")
                 return False
 
             self.data[str(user_id)] = user
@@ -673,11 +673,11 @@ class UserRepository(Database):
             with open(self.file_path, "w") as f:
                 f.write(json.dumps(self.data))
 
-            log("Users gespeichert")
+            log("Users saved")
             return True
 
         except Exception:
-            log_error("Users konnten nicht gespeichert werden")
+            log_error("Users could not be saved")
             return False
 
     def get(self, user_id):
@@ -1771,7 +1771,7 @@ class TaskManager:
         self.db.delete_task(tid)
 
         log_warning(
-            "Task " + str(tid) + " geloescht"
+            "Task " + str(tid) + " deleted"
         )
 
         return True
@@ -1779,7 +1779,7 @@ class TaskManager:
     def restore_task(self, task):
         if task is None or "id" not in task:
             log_error(
-                "Task kann nicht wiederhergestellt werden"
+                "Task could not be restored"
             )
             return False
 
@@ -1792,7 +1792,7 @@ class TaskManager:
             log_info(
                 "Task "
                 + str(task["id"])
-                + " wiederhergestellt"
+                + " restored"
             )
 
         return restored
@@ -2145,14 +2145,14 @@ class HistoryRepository:
                 with open(HISTORY_FILE, "r") as file:
                     self.history = json.load(file)
             except Exception:
-                log_error("Konnte history.json nicht laden")
+                log_error("failed while loading history.json")
                 self.history = {}
 
     def save(self):
         with open(HISTORY_FILE, "w") as file:
             json.dump(self.history, file)
 
-        log("Historie gespeichert")
+        log("History saved")
 
     def save_task(self, task):
         self.history[str(task["id"])] = task
@@ -2802,23 +2802,22 @@ class JsonCredentialStore:
 
 # 4 QS
 
-### Fitness Functions
+# 4.1 Fitness Functions
 
-Die Fitness Functions beziehen sich auf neue Architekturmodell und sollen automatisiert prüfen ob die Architekturregeln eingehalten werden.
+Die Fitness Functions beziehen sich auf neue Architekturmodell aus Kapitel 2 und sollen automatisiert prüfen ob Architekturregeln anhand der ausgewählten Architektur eingehalten werden.
 
 ### Test um sicherzustellen, dass Schichtabhängigkeiten nach innen zeigen:
 
 test_dependency_rules.py:
 ```python
-SRC = Path("src/taskapp")
+SRC = Path("src/Example_Project")
 
-# Hexagon rule tailored to the supplied diagram:
 # domain <- application <- adapters; infrastructure is consumed only by outbound adapters.
 FORBIDDEN_PREFIXES: dict[str, tuple[str, ...]] = {
-    "domain": ("taskapp.application", "taskapp.adapters", "taskapp.infrastructure"),
-    "application": ("taskapp.adapters", "taskapp.infrastructure"),
-    "infrastructure": ("taskapp.domain", "taskapp.application", "taskapp.adapters"),
-    "adapters/inbound": ("taskapp.adapters.outbound", "taskapp.infrastructure"),
+    "domain": ("Example_Project.application", "Example_Project.adapters", "Example_Project.infrastructure"),
+    "application": ("Example_Project.adapters", "Example_Project.infrastructure"),
+    "infrastructure": ("Example_Project.domain", "Example_Project.application", "Example_Project.adapters"),
+    "adapters/inbound": ("Example_Project.adapters.outbound", "Example_Project.infrastructure"),
 }
 
 
@@ -2851,7 +2850,7 @@ def test_layer_dependencies_point_inward() -> None:
 
 test_no_cycles.py:
 ```python
-ROOT = Path("src/taskapp")
+ROOT = Path("src/Example_Project")
 
 
 def module_name(path: Path) -> str:
@@ -2863,8 +2862,8 @@ def local_imports(path: Path) -> set[str]:
     result: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            result.update(a.name for a in node.names if a.name.startswith("taskapp."))
-        elif isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("taskapp."):
+            result.update(a.name for a in node.names if a.name.startswith("Example_Project."))
+        elif isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("Example_Project."):
             result.add(node.module)
     return result
 
@@ -2896,8 +2895,8 @@ def test_no_cyclic_module_imports() -> None:
 
 test_entrypoints.py:
 ```python
-ENTRYPOINTS = [Path("main.py"), *Path("src/taskapp/adapters/inbound").rglob("*.py")]
-FORBIDDEN = ("sqlite3", "sqlalchemy", "psycopg", "taskapp.infrastructure", "taskapp.adapters.outbound")
+ENTRYPOINTS = [Path("main.py"), *Path("src/Example_Project/adapters/inbound").rglob("*.py")]
+FORBIDDEN = ("sqlite3", "sqlalchemy", "psycopg", "Example_Project.infrastructure", "Example_Project.adapters.outbound")
 
 
 def test_no_direct_database_or_infrastructure_use_in_entrypoints() -> None:
