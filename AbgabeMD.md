@@ -2799,3 +2799,143 @@ class JsonCredentialStore:
             ) from exc
 
 ```
+
+# 4 QS
+
+### Fitness Functions
+
+Die Fitness Functions beziehen sich auf neue Architekturmodell und sollen automatisiert prüfen ob die Architekturregeln eingehalten werden.
+
+### Test um sicherzustellen, dass Schichtabhängigkeiten nach innen zeigen:
+
+test_dependency_rules.py:
+```python
+SRC = Path("src/taskapp")
+
+# Hexagon rule tailored to the supplied diagram:
+# domain <- application <- adapters; infrastructure is consumed only by outbound adapters.
+FORBIDDEN_PREFIXES: dict[str, tuple[str, ...]] = {
+    "domain": ("taskapp.application", "taskapp.adapters", "taskapp.infrastructure"),
+    "application": ("taskapp.adapters", "taskapp.infrastructure"),
+    "infrastructure": ("taskapp.domain", "taskapp.application", "taskapp.adapters"),
+    "adapters/inbound": ("taskapp.adapters.outbound", "taskapp.infrastructure"),
+}
+
+
+def python_files(relative: str) -> list[Path]:
+    return list((SRC / relative).rglob("*.py"))
+
+
+def imported_modules(path: Path) -> set[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    imports: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imports.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imports.add(node.module)
+    return imports
+
+
+def test_layer_dependencies_point_inward() -> None:
+    violations: list[str] = []
+    for layer, forbidden in FORBIDDEN_PREFIXES.items():
+        for path in python_files(layer):
+            for imported in imported_modules(path):
+                if imported.startswith(forbidden):
+                    violations.append(f"{path}: forbidden import {imported}")
+    assert not violations, "\n".join(violations)
+```
+
+### Test für zyklische Importe:
+
+test_no_cycles.py:
+```python
+ROOT = Path("src/taskapp")
+
+
+def module_name(path: Path) -> str:
+    return ".".join(path.with_suffix("").parts[1:])
+
+
+def local_imports(path: Path) -> set[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    result: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            result.update(a.name for a in node.names if a.name.startswith("taskapp."))
+        elif isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("taskapp."):
+            result.add(node.module)
+    return result
+
+
+def test_no_cyclic_module_imports() -> None:
+    files = list(ROOT.rglob("*.py"))
+    graph = {module_name(p): local_imports(p) for p in files}
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def visit(node: str, stack: list[str]) -> None:
+        if node in visiting:
+            cycle = " -> ".join(stack + [node])
+            raise AssertionError(f"cyclic import: {cycle}")
+        if node in visited:
+            return
+        visiting.add(node)
+        for target in graph.get(node, set()):
+            if target in graph:
+                visit(target, stack + [node])
+        visiting.remove(node)
+        visited.add(node)
+
+    for module in graph:
+        visit(module, [])
+```
+
+### Test damit Entry Points keine Infrastructure/Outbound-Adapter direkt nutzen
+
+test_entrypoints.py:
+```python
+ENTRYPOINTS = [Path("main.py"), *Path("src/taskapp/adapters/inbound").rglob("*.py")]
+FORBIDDEN = ("sqlite3", "sqlalchemy", "psycopg", "taskapp.infrastructure", "taskapp.adapters.outbound")
+
+
+def test_no_direct_database_or_infrastructure_use_in_entrypoints() -> None:
+    violations: list[str] = []
+    for path in ENTRYPOINTS:
+        if not path.exists():
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            names: list[str] = []
+            if isinstance(node, ast.Import):
+                names = [a.name for a in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                names = [node.module]
+            for name in names:
+                if name.startswith(FORBIDDEN):
+                    violations.append(f"{path}:{node.lineno} forbidden import {name}")
+    assert not violations, "\n".join(violations)
+```
+
+
+### Fakes
+
+Fake für Benachrichtigungen:
+
+fakes.py:
+```python
+@dataclass(slots=True)
+class SentNotification:
+    channel: NotificationChannel
+    destination: str
+    message: str
+
+
+@dataclass
+class FakeNotifier:
+    sent: list[SentNotification] = field(default_factory=list)
+
+    def send(self, channel: NotificationChannel, destination: str, message: str) -> None:
+        self.sent.append(SentNotification(channel, destination, message))
+```
