@@ -2822,7 +2822,9 @@ Die Fitness Functions beziehen sich, genau wie die Integrationstests in 4.2, auf
 
 ### Test um sicherzustellen, dass Schichtabhängigkeiten nach innen zeigen:
 
-test_dependency_rules.py:
+`test_dependency_rules.py` prüft, dass Abhängigkeiten nur nach innen zeigen. Das verhindert, dass innere
+Schichten äußere Schichten improtieren.
+
 ```python
 SRC = Path("src/Example_Project")
 
@@ -2862,7 +2864,7 @@ def test_layer_dependencies_point_inward() -> None:
 
 ### Test für zyklische Importe:
 
-test_no_cycles.py:
+`test_no_cycles.py` prüft ob es zyklische Import-Abhängigkeiten gibt.
 ```python
 ROOT = Path("src/Example_Project")
 
@@ -2907,7 +2909,8 @@ def test_no_cyclic_module_imports() -> None:
 
 ### Test damit Entry Points keine Infrastructure/Outbound-Adapter direkt nutzen
 
-test_entrypoints.py:
+`test_entrypoints.py` verbietet in Entry Points (CLI, REST usw.) direkte Imports von DBs, Infrastruktur oder Outbound-Adaptern.
+
 ```python
 ENTRYPOINTS = [Path("main.py"), *Path("src/Example_Project/adapters/inbound").rglob("*.py")]
 FORBIDDEN = ("sqlite3", "sqlalchemy", "psycopg", "Example_Project.infrastructure", "Example_Project.adapters.outbound")
