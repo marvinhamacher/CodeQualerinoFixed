@@ -2802,9 +2802,23 @@ class JsonCredentialStore:
 
 # 4 QS
 
-# 4.1 Fitness Functions
+# 4.1 Unit Tests (3)
+Unit Tests wurden für das existierende Projekt geschrieben. 
 
-Die Fitness Functions beziehen sich auf neue Architekturmodell aus Kapitel 2 und sollen automatisiert prüfen ob Architekturregeln anhand der ausgewählten Architektur eingehalten werden.
+# 4.2 Integrationstests bzw Tests für Kernlogik 
+In den folgenden Kapitel werden Kernfunktionen getestet jedoch auf basis von Mocks. 
+Mocking ermöglicht es uns das wir tests anhand des neuen Architekturmodells schreiben können ohne das bestimmte Elemente
+im Code dafür existieren müssen.
+
+Tests wurden für alle 3 Hauptfunktionen geschrieben (Users, Tasks, Reports):
+- CLI -> UserInputPort -> CreateAdminUserUseCase 
+- Rest-> ReportInputPort-> CreateWeeklyReportUseCase 
+- Rest-> TaskInputPort-> DeleteTaskUseCase
+
+
+# 4.3 Fitness Functions
+
+Die Fitness Functions beziehen sich, genau wie die Integrationstests in 4.2, auf neue Architekturmodell aus Kapitel 2 und sollen automatisiert prüfen ob Architekturregeln anhand der ausgewählten Architektur eingehalten werden.
 
 ### Test um sicherzustellen, dass Schichtabhängigkeiten nach innen zeigen:
 
