@@ -2872,7 +2872,27 @@ def test_update_status_to_done_saves_and_sends_completion_email():
 
     assert manager.db.get_task(101)["status"] == "done"
 ```
-### 4.1.2
+### 4.1.2 Prüfung, ob neu erstellte Tasks im Daily Report berücksichtigt werden.
+
+```python
+def test_daily_report():
+    r = ReportGenerator()
+
+    before = r.daily_report()
+
+    task_manager.create_task(
+        tid="001",
+        title="TestTitle",
+        desc="TestDesc",
+        prio="1",
+        assignee_id=None,
+        due=None
+    )
+
+    after = r.daily_report()
+
+    assert before != after
+```
 
 # 4.2 Integrationstests bzw Tests für Kernlogik 
 In den folgenden Kapitel werden Kernfunktionen getestet jedoch auf basis von Mocks. 
