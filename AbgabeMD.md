@@ -2884,7 +2884,7 @@ def test_daily_report():
         tid="001",
         title="TestTitle",
         desc="TestDesc",
-        prio="1",
+        prio=1,
         assignee_id=None,
         due=None
     )
