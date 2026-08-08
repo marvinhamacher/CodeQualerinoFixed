@@ -2805,6 +2805,75 @@ class JsonCredentialStore:
 # 4.1 Unit Tests (3)
 Unit Tests wurden für das existierende Projekt geschrieben. 
 
+
+### 4.1.1 Prüfung für nichtexistente Status und Überprüfung ob Status aktualisieren funktioniert
+Aktuell gibt es im projekt nur :
+```
+[
+    "new",
+    "in_progress",
+    "done",
+    "cancelled"
+]
+```
+
+der Status "archived" sollte dementsprechend nicht akzeptiert werden
+
+```python
+def test_update_status_rejects_unknown_status_without_saving():
+    task = {
+        "id": 101,
+        "title": "Task",
+        "priority": 1,
+        "status": "new",
+        "assignee": 10,
+    }
+
+    manager = make_manager(
+        tasks={101: task}
+    )
+
+    result = manager.update_status(
+        101,
+        "archived"
+    )
+
+    assert result is False
+
+    assert manager.db.get_task(101)["status"] == "new"
+    assert manager.db.saved == []
+
+def test_update_status_to_done_saves_and_sends_completion_email():
+    task = {
+        "id": 101,
+        "title": "Doku schreiben",
+        "priority": 1,
+        "status": "in_progress",
+        "assignee": 10,
+    }
+
+    user = {
+        "id": 10,
+        "name": "Anna",
+        "email": "anna@example.com"
+    }
+
+    manager = make_manager(
+        tasks={101: task},
+        users={10: user}
+    )
+
+    result = manager.update_status(
+        101,
+        "done"
+    )
+
+    assert result is True
+
+    assert manager.db.get_task(101)["status"] == "done"
+```
+### 4.1.2
+
 # 4.2 Integrationstests bzw Tests für Kernlogik 
 In den folgenden Kapitel werden Kernfunktionen getestet jedoch auf basis von Mocks. 
 Mocking ermöglicht es uns das wir tests anhand des neuen Architekturmodells schreiben können ohne das bestimmte Elemente
