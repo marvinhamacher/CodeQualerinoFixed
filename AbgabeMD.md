@@ -2915,6 +2915,43 @@ Tests wurden für alle 3 Hauptfunktionen geschrieben (Users, Tasks, Reports):
 - Rest-> ReportInputPort-> CreateWeeklyReportUseCase 
 - Rest-> TaskInputPort-> DeleteTaskUseCase
 
+### 4.2.1 Test für Erstellung eines Admins über CLI
+
+```python
+# tests/integration/test_create_admin_user_cli.py
+
+from tests.fakes.fake_user_repository import FakeUserRepository
+
+from application.facades.user_facade import UserFacade
+from application.use_cases.create_admin_user import CreateAdminUserUseCase
+from adapters.inbound.cli import CLI
+
+
+def test_create_admin_user_via_cli():
+    # Arrange
+    fake_repo = FakeUserRepository()
+
+    facade = UserFacade(fake_repo)
+    use_case = CreateAdminUserUseCase(facade)
+
+    cli = CLI(use_case)
+
+    # Act
+    cli.create_admin_user(
+        uid=1,
+        name="Anna",
+        email="anna@example.com"
+    )
+
+    # Assert
+    created_user = fake_repo.get_user(1)
+
+    assert created_user is not None
+    assert created_user["id"] == 1
+    assert created_user["name"] == "Anna"
+    assert created_user["email"] == "anna@example.com"
+    assert created_user["role"] == "admin"
+```
 
 # 4.3 Fitness Functions
 
