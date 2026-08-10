@@ -2894,6 +2894,15 @@ def test_daily_report():
     assert before != after
 ```
 
+### 4.1.3 Prüfung ob man User löschen bzw. deaktivieren kann
+```python
+def test_user_can_be_deactivated():
+    user = User("Max", "max@test.de")
+
+    user.delete_account()
+
+    assert user.active is False
+```
 # 4.2 Integrationstests bzw Tests für Kernlogik 
 In den folgenden Kapitel werden Kernfunktionen getestet jedoch auf basis von Mocks. 
 Mocking ermöglicht es uns das wir tests anhand des neuen Architekturmodells schreiben können ohne das bestimmte Elemente
