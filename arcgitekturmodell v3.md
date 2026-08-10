@@ -69,9 +69,9 @@ REST --> TaskInput
 REST --> UserInput
 REST --> ReportInput
 
-TaskInput --> TaskUC
-UserInput --> UserUC
-ReportInput --> ReportUC
+TaskUC .- implementiert .-> TaskInput
+UserUC .- implementiert .-> UserInput
+ReportUC .- implementiert .-> ReportInput
 
 TaskUC --> Task
 TaskUC --> User
