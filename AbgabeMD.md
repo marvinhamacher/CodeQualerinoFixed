@@ -2896,12 +2896,14 @@ def test_daily_report():
 
 ### 4.1.3 Prüfung ob man User löschen bzw. deaktivieren kann
 ```python
-def test_user_can_be_deactivated():
-    user = User("Max", "max@test.de")
+from user_types import User
 
-    user.delete_account()
+def test_user_can_be_deleted():
+    user = User(1, "Max", "max@test.de")
 
-    assert user.active is False
+    result = user.delete_account()
+
+    assert result is True
 ```
 # 4.2 Integrationstests bzw Tests für Kernlogik 
 In den folgenden Kapitel werden Kernfunktionen getestet jedoch auf basis von Mocks. 
