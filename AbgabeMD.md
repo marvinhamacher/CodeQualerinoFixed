@@ -2977,33 +2977,27 @@ def test_create_admin_user_via_cli():
     assert created_user["role"] == "admin"
 ```
 ### 4.2.2 Test für Erstellung eines Reports über REST
-
+Für unsere REST Tests gehen wir davon aus das man den Client von Außerhalb mitgeben kann, 
+um so unabhängige Restausführungen testen zu können
 #### test_create_weekly_report_rest.py
 ```python
 # tests/integration/test_create_weekly_report_rest.py
-
 from tests.fakes.fake_report_repository import FakeReportRepository
 
-from application.facades.report_facade import ReportFacade
-from application.use_cases.create_weekly_report import CreateWeeklyReportUseCase
-from adapters.inbound.rest import REST
 
-
-def test_create_weekly_report_via_rest():
+def test_create_weekly_report_via_rest(client):
     # Arrange
     fake_repo = FakeReportRepository()
 
-    facade = ReportFacade(fake_repo)
-    use_case = CreateWeeklyReportUseCase(facade)
-
-    rest = REST(use_case)
+    # fake_repo mit dem vom client verwendeten
+    # CreateWeeklyReportUseCase verbinden
 
     # Act
-    rest.create_weekly_report(
-        report_id=1
-    )
+    response = client.post("/reports/weekly")
 
     # Assert
+    assert response.status_code == 201
+
     created_report = fake_repo.get_report(1)
 
     assert created_report is not None
@@ -3028,6 +3022,33 @@ class FakeReportRepository:
     def all_reports(self):
         return self.reports
 
+```
+### 4.2.3 Test für Löschen eines Tasks über REST
+
+#### test_delete_task_via_rest.py
+```python
+from tests.fakes.fake_task_repository import FakeTaskRepository
+
+
+def test_delete_task_via_rest(client):
+    # Arrange
+    fake_repo = FakeTaskRepository()
+
+    fake_repo.save_task(
+        task_id=1,
+        task={
+            "id": 1,
+            "title": "Test Task",
+            "status": "open"
+        }
+    )
+
+    # Act
+    response = client.delete("/tasks/1")
+
+    # Assert
+    assert response.status_code == 200
+    assert fake_repo.get_task(1) is None
 ```
 # 4.3 Fitness Functions
 
