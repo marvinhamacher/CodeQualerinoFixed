@@ -2919,8 +2919,6 @@ Tests wurden für alle 3 Hauptfunktionen geschrieben (Users, Tasks, Reports):
 
 #### fake_user_repository.py
 ```python
-# tests/fakes/fake_user_repository.py
-
 class FakeUserRepository:
     def __init__(self):
         self.users = {}
@@ -2942,8 +2940,6 @@ class FakeUserRepository:
 
 #### test_create_admin_user_cli.py
 ```python
-# tests/integration/test_create_admin_user_cli.py
-
 from tests.fakes.fake_user_repository import FakeUserRepository
 
 from application.facades.user_facade import UserFacade
@@ -2952,7 +2948,6 @@ from adapters.inbound.cli import CLI
 
 
 def test_create_admin_user_via_cli():
-    # Arrange
     fake_repo = FakeUserRepository()
 
     facade = UserFacade(fake_repo)
@@ -2960,14 +2955,12 @@ def test_create_admin_user_via_cli():
 
     cli = CLI(use_case)
 
-    # Act
     cli.create_admin_user(
         uid=1,
         name="Anna",
         email="anna@example.com"
     )
 
-    # Assert
     created_user = fake_repo.get_user(1)
 
     assert created_user is not None
@@ -2983,7 +2976,6 @@ um so unabhängige Restausführungen testen zu können
 
 #### fake_report_repository.py
 ```python
-# tests/fakes/fake_report_repository.py
 class FakeReportRepository:
     def init(self):
         self.reports = {}
@@ -3002,7 +2994,6 @@ class FakeReportRepository:
 
 #### test_create_weekly_report_rest.py
 ```python
-# tests/integration/test_create_weekly_report_rest.py
 from tests.fakes.fake_report_repository import FakeReportRepository
 
 
