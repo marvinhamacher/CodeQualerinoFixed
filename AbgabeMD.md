@@ -2917,6 +2917,30 @@ Tests wurden für alle 3 Hauptfunktionen geschrieben (Users, Tasks, Reports):
 
 ### 4.2.1 Test für Erstellung eines Admins über CLI
 
+#### fake_user_repository.py
+```python
+# tests/fakes/fake_user_repository.py
+
+class FakeUserRepository:
+    def __init__(self):
+        self.users = {}
+
+    def save_user(self, uid, user):
+        self.users[str(uid)] = user
+        return True
+
+    def get_user(self, uid):
+        return self.users.get(str(uid))
+
+    def delete_user(self, uid):
+        self.users.pop(str(uid), None)
+
+    def all_users(self):
+        return self.users
+```
+
+
+#### test_create_admin_user_cli.py
 ```python
 # tests/integration/test_create_admin_user_cli.py
 
@@ -2952,7 +2976,59 @@ def test_create_admin_user_via_cli():
     assert created_user["email"] == "anna@example.com"
     assert created_user["role"] == "admin"
 ```
+### 4.2.2 Test für Erstellung eines Reports über REST
 
+#### test_create_weekly_report_rest.py
+```python
+# tests/integration/test_create_weekly_report_rest.py
+
+from tests.fakes.fake_report_repository import FakeReportRepository
+
+from application.facades.report_facade import ReportFacade
+from application.use_cases.create_weekly_report import CreateWeeklyReportUseCase
+from adapters.inbound.rest import REST
+
+
+def test_create_weekly_report_via_rest():
+    # Arrange
+    fake_repo = FakeReportRepository()
+
+    facade = ReportFacade(fake_repo)
+    use_case = CreateWeeklyReportUseCase(facade)
+
+    rest = REST(use_case)
+
+    # Act
+    rest.create_weekly_report(
+        report_id=1
+    )
+
+    # Assert
+    created_report = fake_repo.get_report(1)
+
+    assert created_report is not None
+    assert created_report["id"] == 1
+    assert created_report["type"] == "weekly"
+```
+
+#### fake_report_repository.py
+```python
+tests/fakes/fake_report_repository.py
+class FakeReportRepository:
+    def init(self):
+        self.reports = {}
+
+    def save_report(self, report_id, report):
+        self.reports[str(report_id)] = report
+        return True
+
+    def get_report(self, report_id):
+        return self.reports.get(str(report_id))
+
+    def all_reports(self):
+        return self.reports
+
+```
 # 4.3 Fitness Functions
 
 Die Fitness Functions beziehen sich, genau wie die Integrationstests in 4.2, auf neue Architekturmodell aus Kapitel 2 und sollen automatisiert prüfen ob Architekturregeln anhand der ausgewählten Architektur eingehalten werden.
