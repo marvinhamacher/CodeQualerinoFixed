@@ -2979,6 +2979,27 @@ def test_create_admin_user_via_cli():
 ### 4.2.2 Test für Erstellung eines Reports über REST
 Für unsere REST Tests gehen wir davon aus das man den Client von Außerhalb mitgeben kann, 
 um so unabhängige Restausführungen testen zu können
+
+
+#### fake_report_repository.py
+```python
+# tests/fakes/fake_report_repository.py
+class FakeReportRepository:
+    def init(self):
+        self.reports = {}
+
+    def save_report(self, report_id, report):
+        self.reports[str(report_id)] = report
+        return True
+
+    def get_report(self, report_id):
+        return self.reports.get(str(report_id))
+
+    def all_reports(self):
+        return self.reports
+
+```
+
 #### test_create_weekly_report_rest.py
 ```python
 # tests/integration/test_create_weekly_report_rest.py
@@ -3005,25 +3026,32 @@ def test_create_weekly_report_via_rest(client):
     assert created_report["type"] == "weekly"
 ```
 
-#### fake_report_repository.py
+### 4.2.3 Test für Löschen eines Tasks über REST
+#### fake_task_repository.py
 ```python
-# tests/fakes/fake_report_repository.py
-class FakeReportRepository:
-    def init(self):
-        self.reports = {}
+class FakeTaskRepository:
+    def __init__(self):
+        self.tasks = {}
 
-    def save_report(self, report_id, report):
-        self.reports[str(report_id)] = report
+    def save_task(self, task_id, task):
+        self.tasks[str(task_id)] = task
         return True
 
-    def get_report(self, report_id):
-        return self.reports.get(str(report_id))
+    def get_task(self, task_id):
+        return self.tasks.get(str(task_id))
 
-    def all_reports(self):
-        return self.reports
+    def delete_task(self, task_id):
+        task_id = str(task_id)
 
+        if task_id in self.tasks:
+            del self.tasks[task_id]
+            return True
+
+        return False
+
+    def all_tasks(self):
+        return self.tasks
 ```
-### 4.2.3 Test für Löschen eines Tasks über REST
 
 #### test_delete_task_via_rest.py
 ```python
