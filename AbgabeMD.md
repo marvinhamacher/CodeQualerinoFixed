@@ -282,6 +282,17 @@ PUSH --> Config
 ```
 ## 2.3 Ports und Interfaces
 
+| Port | Beschreibung | Verwaltet |
+|---|---|---|
+| `TaskInputPort` | Definiert die von außen aufrufbaren Funktionen für die Aufgabenverwaltung. | Aufgaben |
+| `UserInputPort` | Definiert die von außen aufrufbaren Funktionen für die Benutzerverwaltung. | Benutzer |
+| `ReportInputPort` | Definiert die von außen aufrufbaren Funktionen für die Berichterstellung. | Berichte |
+| `TaskRepository` | Definiert den Zugriff auf die persistierten Aufgabendaten. | Aufgaben |
+| `UserRepository` | Definiert den Zugriff auf die persistierten Benutzerdaten. | Benutzer |
+| `ReportRepository` | Definiert den Zugriff auf gespeicherte Berichte und Berichtsdaten. | Berichte |
+| `NotificationsPort` | Definiert die Schnittstelle zum Versenden von Benachrichtigungen über verschiedene Kanäle. | Benachrichtigungen |
+| `ClockPort` | Stellt der Anwendung eine abstrahierte Schnittstelle für Datum und Uhrzeit bereit. | Zeit / Datum |
+
 # 3 Refactoring
 
 ## 3.1 Behebung der 5 SOLID - Verletzung
