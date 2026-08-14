@@ -112,6 +112,176 @@
 
 - **Severity:** **High**, da die hohe Kopplung die Erweiterbarkeit und Testbarkeit der zentralen Geschäftslogik erheblich einschränkt.
 
+# 2 Architektur 
+In diesem Kapitel wird anhand, von den innerhalb der Vorlesung beigebrachten Inhalten,
+die Architektur des Projektes neubestimmt. Ziel ist die Architektur anhand beigebrachter Modelle und gängigen Mustern zu
+verbessern.
+
+## 2.1 Wahl eines Architekturmodells
+Zur Auswahl standen diverse Architekturmodelle. Wir haben uns für eine klar geteilte Hexagonale Architektur
+entschieden. Im endeffekt kann jede Architektur entschieden gewählt werden, Architekturansätze wie EDA und Microservice 
+können in abgewandelter Form als zusätzliche Architektur abstraktion genutzt werden.
+
+### 2.1.1 Warum Hexagonal?
+Die hexagonale Architektur erlaubt es, Komponente auszutauschen. 
+Der JsonTaskRepository das in einer Umsetzung vonnöten wäre, kann zum Beispiel durch MSSQLTaskRepository ersetzt werden, 
+ohne dabei die Klassen mit der Geschäftslogik umzuschreiben. 
+Des Weiteren wird durch die hexagonale Architektur SOLID besser eingehalten denn High-Level-Komponente hängen von 
+Abstraktionen statt von technischen Klassen ab und DIP wird durch Ports umgesetzt. Ebenfalls können mehrere Eingabekanäle
+ermöglicht werden, indem Use-Cases definiert und an die Eingabekanäle übergeben werden. 
+
+Wie in Kapitel 4 demonstriert ermöglicht die hexagonale Architektur eine gute Testbarkeit mithilfe von Fake- oder Mock-Repositories,
+ohne dabei die echte Infrastruktur zu verwenden.
+
+### 2.1.2 Warum kein MVC?
+MVC eignet sich hauptsächlich zur Trennung von Benutzeroberfläche, Steuerung und Datenmodell. 
+Unser Projekt benötigt jedoch vor allem eine klare Trennung zwischen Geschäftslogik und technischen Komponenten wie Datenhaltung und Benachrichtigungen. 
+Die hexagonale Architektur bietet dafür mit Ports und Adaptern eine passendere Struktur und ermöglicht eine bessere Austauschbarkeit dieser Komponenten.
+
+### 2.1.3 Warum keine Schichtenarchitektur?
+Eine klassische Schichtenarchitektur wäre grundsätzlich möglich, 
+trennt Geschäftslogik und technische Komponenten jedoch weniger konsequent. 
+Die hexagonale Architektur macht diese Trennung durch explizite Ports und Adapter deutlicher. 
+Das passt besser zu unserem Ziel, beispielsweise Datenhaltung und Benachrichtigungen austauschbar zu halten.
+
+### 2.1.4 Warum keine Microservices?
+Microservices wären für die Größe des Projekts unnötig komplex. 
+Sie würden zusätzliche Probleme wie Service-Kommunikation, 
+Deployment und verteilte Datenhaltung mit sich bringen.
+Die benötigte Trennung der Komponenten lässt sich innerhalb einer einzelnen Anwendung mit der hexagonalen Architektur 
+einfacher erreichen.
+
+### 2.1.5 Warum keine EDA?
+Eine Event-Driven Architecture eignet sich besonders für Systeme mit vielen asynchronen und voneinander unabhängigen Abläufen. 
+Unser Projekt besteht hauptsächlich aus direkten Abläufen wie dem Erstellen, Speichern und Bearbeiten von Aufgaben. 
+Eine EDA würde deshalb zusätzliche Komplexität schaffen, ohne einen wesentlichen Vorteil zu bieten.
+
+## 2.2 Schichtendiagramm
+Das Diagramm wurde anhand der Library Mermaid modelliert. Die darausfolgenden Refactorings wurden wie gefordert anhand 
+von ADRs im Kapitel 3 notiert.
+```mermaid
+flowchart LR
+
+subgraph Inbound["Inbound Adapters"]
+    CLI["CLI Adapter"]
+    REST["REST API"]
+end
+
+subgraph App["Application"]
+
+    subgraph InputPorts["Input Ports"]
+        TaskInput["TaskInputPort"]
+        UserInput["UserInputPort"]
+        ReportInput["ReportInputPort"]
+    end
+
+    subgraph UseCases["Use Cases"]
+        TaskUC["Task Commands / Use Cases"]
+        UserUC["User Use Cases"]
+        ReportUC["Report Use Cases"]
+    end
+
+    ReportFacade["ReportFacade"]
+    UserFacade["UserFacade"]
+    TaskFacade["TaskFacade"]
+
+    subgraph OutputPorts["Output Ports"]
+        TaskRepo["TaskRepository"]
+        UserRepo["UserRepository"]
+        ReportRepo["ReportRepository"]
+        NotificationPort["NotificationPort"]
+        ClockPort["ClockPort"]
+    end
+end
+
+subgraph Domain["Domain"]
+    Task["Task"]
+    User["User"]
+    Priority["Priority"]
+    TaskStatus["TaskStatus"]
+    NotificationChannel["NotificationChannel"]
+    ReminderPolicy["ReminderPolicy"]
+end
+
+subgraph Outbound["Outbound Adapters"]
+    JsonTaskRepo["JsonTaskRepository"]
+    JsonUserRepo["JsonUserRepository"]
+
+    EmailNotifier["EmailNotifier"]
+    SmsNotifier["SmsNotifier"]
+    PushNotifier["PushNotifier"]
+
+    SystemClock["SystemClock"]
+end
+
+subgraph Infra["Infrastructure"]
+    JsonStore["JSON File Store"]
+    SMTP["SMTP Client"]
+    SMS["SMS Gateway"]
+    PUSH["Push Gateway"]
+    Config["Configuration"]
+end
+
+CLI --> TaskInput
+CLI --> UserInput
+CLI --> ReportInput
+
+REST --> TaskInput
+REST --> UserInput
+REST --> ReportInput
+
+TaskUC -. implementiert .-> TaskInput
+UserUC -. implementiert .-> UserInput
+ReportUC -. implementiert .-> ReportInput
+
+TaskUC --> Task
+TaskUC --> User
+TaskUC --> ReminderPolicy
+
+UserUC --> User
+
+ReportUC --> Task
+
+Task --> Priority
+Task --> TaskStatus
+Task --> User
+User --> NotificationChannel
+
+TaskUC --> TaskFacade
+UserUC --> UserFacade
+ReportUC --> ReportFacade
+
+TaskFacade --> TaskRepo
+UserFacade --> UserRepo
+ReportFacade --> ReportRepo
+
+TaskUC --> NotificationPort
+TaskUC --> ClockPort
+ReportUC --> ClockPort
+
+JsonTaskRepo -. implementiert .-> TaskRepo
+JsonUserRepo -. implementiert .-> UserRepo
+
+EmailNotifier -. implementiert .-> NotificationPort
+SmsNotifier -. implementiert .-> NotificationPort
+PushNotifier -. implementiert .-> NotificationPort
+
+SystemClock -. implementiert .-> ClockPort
+
+JsonTaskRepo --> JsonStore
+JsonUserRepo --> JsonStore
+
+EmailNotifier --> SMTP
+SmsNotifier --> SMS
+PushNotifier --> PUSH
+
+JsonStore --> Config
+SMTP --> Config
+SMS --> Config
+PUSH --> Config
+```
+## 2.3 Ports und Interfaces
+
 # 3 Refactoring
 
 ## 3.1 Behebung der 5 SOLID - Verletzung
