@@ -1,4 +1,4 @@
-# 0. Inhaltsverzeichnis 
+# 0. Inhaltsverzeichnis
 
 
 
@@ -9,11 +9,11 @@
 
 # 1 Verletzung von architektonischen
 
-# 1.1 Verletzung SOLID, Testbarkeit, Architektur und Modellierung im Überblick
+## 1.1 Verletzung SOLID, Testbarkeit, Architektur und Modellierung im Überblick
 
 
 ---
-## 1.1.1 Schwere Verletzungen
+### 1.1.1 Schwere Verletzungen
 | Kategorie               | Datei              | Klasse               | Grund                          | Beschreibung                                                                          | Wartbarkeitseinschränkung                        | Severity |
 | ----------------------- | ------------------ | -------------------- | ------------------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------ | ------ |
 | Architektur / Schichten | `task_manager.py`  | `TaskManager`        | Direkte DB-Zugriffe            | Verletzt Schichtenarchitektur, Geschäftslogik ist an Infrastruktur gekoppelt.         | Sehr schlechte Testbarkeit und hohe Kopplung     | High  |
@@ -28,7 +28,7 @@
 | Architektur             | `task_manager.py`  | `TaskManager`        | Fat Controller                 | Enthält zu viel Geschäftslogik.                                                       | Geringe Wartbarkeit                              | High |
 
 ---
-## 1.1.2 Mittelschwerwiegende Verletzungen
+### 1.1.2 Mittelschwerwiegende Verletzungen
 
 
 | Kategorie   | Datei                 | Klasse                      | Grund                                      | Beschreibung                                             | Wartbarkeitseinschränkung  | Severity |
@@ -46,7 +46,7 @@
 | TDD         | mehrere               | -                           | Business-Logik mit Infrastruktur vermischt | Schlechte Testbarkeit                                    | Wartungsaufwand steigt     | Medium |
 
 ---
-## 1.1.3 Leichte Verletzungen
+### 1.1.3 Leichte Verletzungen
 
 | Kategorie | Datei      | Klasse | Grund                   | Beschreibung                        | Wartbarkeitseinschränkung | Severity |
 | --------- | ---------- | ------ | ----------------------- | ----------------------------------- | ------------------------- | ----- |
@@ -54,7 +54,7 @@
 | SOLID     | mehrere    | -      | Kleinere SOLID-Verstöße | Verbesserungspotenzial              | Begrenzter Einfluss       | Low |
 
 ---
-## 1.1.4 Architektonische Empfehlungen
+### 1.1.4 Architektonische Empfehlungen
 
 | Empfehlung        | Datei/Klasse                | Nutzen                                               | Priorität    |
 | ----------------- | --------------------------- | ---------------------------------------------------- | ------------ |
@@ -104,7 +104,7 @@
 
 ---
 
-###  1.2.5 Dependency Inversion Principle bei `task_manager.py` verletzt
+### 1.2.5 Dependency Inversion Principle bei `task_manager.py` verletzt
 
 - **Grund:** High-Level-Module hängen von Low-Level-Modulen ab. `TaskManager` initialisiert die Klassen `Database` und `NotificationCenter` direkt und bekommt sie nicht durch eine Abstraktion bereitgestellt.
 
@@ -122,7 +122,7 @@ Die Fixes bestehen in sich selber und sind unabhängige vorschläge, jedoch kön
 Sie betrachten einzelne Fixes für die jeweiligen Klassen und nicht eine Klasse wo alle fehler auf ein mal behoben werden.
 Die Einzelbetrachtung sollen zeigen, dass die ursache des Problems verstanden wurde und auch verstanden wurde wie diese zu beheben ist.
 
-### 3.1.1  Single Responsibility Principle bei `task_manager.py`
+### 3.1.1 Single Responsibility Principle bei `task_manager.py`
 `task_manager.py` hat aktuell Methoden, die nicht nur für das Verwalten von Aufgaben wichtig sind. 
 Beispielsweise besitzt die Datei die Methode set_reminder und find_overdue welche die Logik zum Ermitteln überfälliger Aufgaben sowie das Versenden von Erinnerungen übernehmen. 
 Diese Verantwortlichkeiten gehören jedoch nicht zur eigentlichen Aufgabenverwaltung.
@@ -283,9 +283,9 @@ class TaskManager:
                     u, "email", "Aufgabe ueberfaellig", "Die Aufgabe '" + t["title"] + "' ist ueberfaellig."
                 )
 ```
-###  Nachher
+### Nachher
 
-#### task_manager.py
+#### `task_manager.py`
 
 ```python
 from datetime import datetime
@@ -364,7 +364,7 @@ class TaskManager:
         return self.database.all_tasks()
 ```
 
-#### reminder_service.py
+#### `reminder_service.py`
 
 ```python
 from datetime import datetime
@@ -411,7 +411,7 @@ class ReminderService:
             )
 ```
 
-#### task_formatter.py
+#### `task_formatter.py`
 
 ```python
 class TaskFormatter:
@@ -450,7 +450,7 @@ als abstrakte Methoden bereit.
 
 Anschließend können spezialisierte Klassen wie `TaskRepository` und `UserRepository` von dieser Basisklasse erben und die Methoden entsprechend ihrer jeweiligen Entität implementieren. Dadurch besitzt jede Repository-Klasse nur noch die Verantwortung für genau eine Datenbankentität, während die abstrakte Klasse lediglich die gemeinsame Schnittstelle definiert.
 
-###  Vorher
+### Vorher
 
 ```python
 import json
@@ -546,7 +546,7 @@ class Database:
         return self.u
 ```
 
-## Nachher
+### Nachher
 ```python
 import json
 import os
@@ -834,7 +834,7 @@ class ReportGenerator:
 
 ### Nachher
 
-#### report.py
+#### `report.py`
 
 ```python
 from abc import ABC, abstractmethod
@@ -879,7 +879,7 @@ class Report(ABC):
         return new, done, open_tasks
 ```
 
-#### daily_report.py
+#### `daily_report.py`
 
 ```python
 from datetime import datetime
@@ -900,7 +900,7 @@ class DailyReport(Report):
         )
 ```
 
-#### weekly_report.py
+#### `weekly_report.py`
 
 ```python
 from datetime import datetime
@@ -921,7 +921,7 @@ class WeeklyReport(Report):
         )
 ```
 
-#### monthly_report.py
+#### `monthly_report.py`
 
 ```python
 from datetime import datetime
@@ -942,7 +942,7 @@ class MonthlyReport(Report):
         )
 ```
 
-#### report_generator.py
+#### `report_generator.py`
 
 ```python
 from email_service import EmailService
@@ -1028,7 +1028,7 @@ während schreibende oder administrative Funktionen in separate Rollen ausgelage
 Das Resultat ermöglicht ein frei kombinierbares Permissionssystem.
 
 ### Vorher
-#### user_types.py
+#### `user_types.py`
 ```python
 class User:
     """Basisklasse fuer alle Benutzer."""
@@ -1079,7 +1079,7 @@ class ReadOnlyUser(User):
 Es ist besser die Types in eigenen Dateien abzubilden. Python ermöglicht zwar im Vergleich zu anderen Programmierprachen wie JAVA, das mehrere
 Klassen in einer Datei sind, jedoch geht dadurch die übersicht verloren.
 
-#### user.py
+#### `user.py`
 
 ```python
 class User:
@@ -1093,7 +1093,7 @@ class User:
         return f"{self.name} ({self.email})"
 ```
 
-#### editable_user.py
+#### `editable_user.py`
 
 ```python
 from abc import ABC, abstractmethod
@@ -1107,7 +1107,7 @@ class EditableUser(User, ABC):
         pass
 ```
 
-#### deletable_user.py
+#### `deletable_user.py`
 
 ```python
 from abc import ABC, abstractmethod
@@ -1121,7 +1121,7 @@ class DeletableUser(User, ABC):
         pass
 ```
 
-#### standard_user.py
+#### `standard_user.py`
 
 ```python
 from editable_user import EditableUser
@@ -1138,7 +1138,7 @@ class StandardUser(EditableUser, DeletableUser):
         return True
 ```
 
-#### admin_user.py
+#### `admin_user.py`
 
 ```python
 from editable_user import EditableUser
@@ -1155,7 +1155,7 @@ class AdminUser(EditableUser):
         return True
 ```
 
-#### readonly_user.py
+#### `readonly_user.py`
 
 ```python
 from user import User
@@ -1358,7 +1358,7 @@ class TaskManager:
 
 ### Nachher
 
-#### task_manager.py
+#### `task_manager.py`
 
 ```python
 class TaskManager:
@@ -1376,7 +1376,7 @@ class TaskManager:
         self.user_manager = user_manager
 ```
 
-#### main.py
+#### `main.py`
 
 ```python
 from task_manager import TaskManager
@@ -1429,7 +1429,7 @@ ohne Änderungen an der Geschäftslogik des `TaskManager` vorzunehmen.
 ## 3.2 Einsatz von mehreren Mustern (3)
 ### Umsetzung des Strategy Patterns für Benachrichtigungen
 
-notification_strategy.py
+#### `notification_strategy.py`
 ```python
 class NotificationStrategy(ABC):
     @abstractmethod
@@ -1437,7 +1437,7 @@ class NotificationStrategy(ABC):
         raise NotImplementedError
 ```
 
-notification_adapters.py
+#### `notification_adapters.py`
 ```python
 class EmailNotifier(NotificationStrategy):
     def __init__(self, service):
@@ -1465,7 +1465,7 @@ class PushNotifier(NotificationStrategy):
         return self.service.send_push(user.get("device", ""), message)
 ```
 
-notifications.py
+#### `notifications.py`
 ```python
 class NotificationCenter:
     def __init__(self, strategies=None, channel_groups=None):
@@ -1502,7 +1502,7 @@ class NotificationCenter:
 
 Drei fachlich getrennte Facades für User, Tasks und Reports
 
-user_facade.py
+#### `user_facade.py`
 ```python
 class UserFacade:
     def __init__(self, user_manager):
@@ -1524,7 +1524,7 @@ class UserFacade:
         return self.user_manager.change_email(user_id, new_email)
 ```
 
-task_facade.py
+#### `task_facade.py`
 ```python
 class TaskFacade:
     def __init__(self, task_manager):
@@ -1563,7 +1563,7 @@ class TaskFacade:
         ]
 ```
 
-report_facade.py
+#### `report_facade.py`
 ```python
 class ReportFacade:
     def __init__(self, report_generator):
@@ -1587,7 +1587,7 @@ class ReportFacade:
 
 ### Umsetzung des Command Patterns für Task Manager
 
-commands.py
+#### `commands.py`
 ```python
 class TaskCommand(ABC):
     @abstractmethod
@@ -1756,7 +1756,7 @@ class TaskCommandInvoker:
         return successful
 ```
 
-task_manager.py
+#### `task_manager.py`
 ```python
 class TaskManager:
 
@@ -1802,17 +1802,17 @@ class TaskManager:
 ```
 
 ## 3.3 ADRs für Refactoring anhand SOLID-korrektur und Patterns
-# ADR-001: Einführung einer hexagonalen Architektur
+### ADR-001: Einführung einer hexagonalen Architektur
 
 - **Status:** Akzeptiert
 
-## Kontext
+### Kontext
 
 Die bisherige Architektur koppelt die Geschäftslogik direkt an technische Komponenten wie JSON-Speicherung, Benachrichtigungsdienste und die Kommandozeilenoberfläche. Klassen wie der `TaskManager` erzeugen konkrete Abhängigkeiten selbst und übernehmen mehrere Verantwortlichkeiten.
 
 Dadurch sind einzelne Komponenten schwer austauschbar und nur mit hohem Aufwand isoliert testbar.
 
-## Entscheidung
+### Entscheidung
 
 Das Projekt wird nach dem Prinzip der **hexagonalen Architektur (Ports and Adapters)** strukturiert.
 
@@ -1826,13 +1826,13 @@ Das System wird in folgende Bereiche aufgeteilt:
 
 Die Abhängigkeiten zeigen grundsätzlich von außen nach innen. Die Domain bleibt vollständig unabhängig von technischen Komponenten.
 
-## Begründung
+### Begründung
 
 Die hexagonale Architektur trennt Fachlogik und technische Umsetzung. Dadurch kann beispielsweise die JSON-Speicherung später durch SQLite oder eine andere Persistenzlösung ersetzt werden, ohne die Use Cases oder die Domain zu verändern.
 
 Außerdem können unterschiedliche Benutzeroberflächen wie eine CLI oder eine REST-API dieselben Use Cases verwenden.
 
-## Konsequenzen
+### Konsequenzen
 
 ### Vorteile
 
@@ -1848,11 +1848,11 @@ Außerdem können unterschiedliche Benutzeroberflächen wie eine CLI oder eine R
 - Höherer anfänglicher Strukturierungsaufwand
 - Für kleine Projekte teilweise mehr Abstraktion als technisch zwingend notwendig
 
-# ADR-002: Verwendung des Command Patterns für Aufgabenaktionen
+### ADR-002: Verwendung des Command Patterns für Aufgabenaktionen
 
 - **Status:** Akzeptiert
 
-## Kontext
+### Kontext
 
 Der bisherige `TaskManager` enthält mehrere unterschiedliche Aktionen:
 
@@ -1864,7 +1864,7 @@ Der bisherige `TaskManager` enthält mehrere unterschiedliche Aktionen:
 
 Dadurch wird die Klasse groß und übernimmt mehrere Verantwortlichkeiten.
 
-## Entscheidung
+### Entscheidung
 
 Die Aufgabenaktionen werden mit dem **Command Pattern** in einzelne Klassen aufgeteilt.
 
@@ -1877,13 +1877,13 @@ Geplante Commands sind:
 
 Jedes Command besitzt eine klar abgegrenzte Aufgabe und eine Methode wie `execute()`.
 
-## Begründung
+### Begründung
 
 Das Command Pattern passt zu den einzelnen Aktionen des Task-Management-Systems. Jede Aktion kann separat implementiert, getestet und erweitert werden.
 
 Dadurch wird das **Single Responsibility Principle (SRP)** besser eingehalten.
 
-## Konsequenzen
+### Konsequenzen
 
 ### Vorteile
 
@@ -1900,11 +1900,11 @@ Dadurch wird das **Single Responsibility Principle (SRP)** besser eingehalten.
 
 ---
 
-# ADR-003: Verwendung des Strategy Patterns für Benachrichtigungskanäle
+### ADR-003: Verwendung des Strategy Patterns für Benachrichtigungskanäle
 
 - **Status:** Akzeptiert
 
-## Kontext
+### Kontext
 
 Das System unterstützt verschiedene Benachrichtigungskanäle:
 
@@ -1914,7 +1914,7 @@ Das System unterstützt verschiedene Benachrichtigungskanäle:
 
 Ohne ein eigenes Muster müsste die Auswahl des Kanals durch `if`- oder `elif`-Blöcke erfolgen. Bei jedem neuen Kanal müsste die bestehende Logik geändert werden.
 
-## Entscheidung
+### Entscheidung
 
 Die Benachrichtigungskanäle werden mithilfe des **Strategy Patterns** implementiert.
 
@@ -1930,13 +1930,13 @@ Der benötigte Adapter wird von außen an den jeweiligen Use Case übergeben.
 
 Ein separater `NotificationService` wird nicht als Outbound Adapter verwendet.
 
-## Begründung
+### Begründung
 
 E-Mail, SMS und Push verfolgen dasselbe Ziel, verwenden jedoch unterschiedliche technische Abläufe.
 
 Das Strategy Pattern ermöglicht es, diese Varianten hinter einer gemeinsamen Schnittstelle zu kapseln. Neue Kanäle können ergänzt werden, ohne bestehende Use Cases zu verändern.
 
-## Konsequenzen
+### Konsequenzen
 
 ### Vorteile
 
@@ -1952,25 +1952,25 @@ Das Strategy Pattern ermöglicht es, diese Varianten hinter einer gemeinsamen Sc
 - Die Strategie muss zur Laufzeit ausgewählt und injiziert werden
 - Für einfache Anwendungen kann die Architektur komplexer wirken
 
-# ADR-004: Verwendung des Facade Patterns für den Datenzugriff
+### ADR-004: Verwendung des Facade Patterns für den Datenzugriff
 
-## Status
+### Status
 
 **Akzeptiert**
 
-## Kontext
+### Kontext
 
 Die Anwendung greift auf verschiedene Komponenten der Datenhaltung zu. Ohne eine gemeinsame Zugriffsschicht müssten Komponenten der Application-Schicht mehrere Repository-Schnittstellen direkt verwenden.
 
 Dadurch entstehen zusätzliche Abhängigkeiten und die interne Struktur der Datenhaltung wird für aufrufende Komponenten sichtbar.
 
-## Entscheidung
+### Entscheidung
 
 Für den Datenzugriff wird das **Facade Pattern** eingesetzt.
 
 Eine `DatabaseFacade` stellt eine zentrale und vereinfachte Schnittstelle für den Zugriff auf die Datenhaltung bereit. Die interne Organisation der Repository-Komponenten wird dabei gekapselt.
 
-## Begründung
+### Begründung
 
 Das Facade Pattern reduziert die Komplexität des Datenzugriffs und entkoppelt die Application-Schicht von der internen Struktur der Datenhaltung.
 
@@ -1978,7 +1978,7 @@ Das Facade Pattern reduziert die Komplexität des Datenzugriffs und entkoppelt d
 
 Die Entscheidung verbessert außerdem die Wartbarkeit und sorgt für eine klarere Trennung der Verantwortlichkeiten.
 
-## Konsequenzen
+### Konsequenzen
 
 ### Vorteile
 
@@ -1993,7 +1993,7 @@ Die Entscheidung verbessert außerdem die Wartbarkeit und sorgt für eine klarer
 - Gefahr einer überladenen Facade bei zu vielen Verantwortlichkeiten
 - zusätzlicher Implementierungsaufwand
 
-## Verworfene Alternativen
+### Verworfene Alternativen
 
 ### Direkter Zugriff auf mehrere Repository-Komponenten
 
@@ -2262,7 +2262,7 @@ Um Daten für Nutzer und externe Systeme bereitszustellen wird eine Export Mögl
 
 Die ExportEntity enthält die Daten, die exportiert werden sollen. Das ExportEntity wird an den Exporter übergeben, wodurch der Exporter nicht für alle Modelle des Systems bescheid wissen muss.
 
-entities.py
+#### `entities.py`
 ```python
 T = TypeVar("T")
 Row = Dict[str, Any]
@@ -2310,7 +2310,7 @@ class ExportEntity(Generic[T]):
 ```
 
 Der ExportService ist die Schnittstelle für den Export. Er verwaltet alle verfügbaren Exporter und entscheidet anhand des Formats, welcher verwendet wird.
-export_service.py
+#### `export_service.py`
 ```python
 T = TypeVar("T")
 class ExportService(Generic[T]):
@@ -2362,7 +2362,7 @@ class ExportService(Generic[T]):
 
 Exporter ist eine abstrakte Basisklasse, die die gemeinsame Export-Schnittstelle vorgibt. Spezifische Exporter wie CsvExporter, JsonExporter oder TxtExporter erben von dieser Basisklasse und implementieren die Exportlogik für ihr jeweiliges Dateiformat.
 
-exporters.py
+#### `exporters.py`
 ```python
 T = TypeVar("T")
 class Exporter(ABC, Generic[T]):
@@ -2802,7 +2802,7 @@ class JsonCredentialStore:
 
 # 4 QS
 
-# 4.1 Unit Tests (3)
+## 4.1 Unit Tests (3)
 Unit Tests wurden für das existierende Projekt geschrieben. 
 
 
@@ -2905,7 +2905,7 @@ def test_user_can_be_deleted():
 
     assert result is True
 ```
-# 4.2 Integrationstests bzw Tests für Kernlogik 
+## 4.2 Integrationstests bzw Tests für Kernlogik
 In den folgenden Kapitel werden Kernfunktionen getestet jedoch auf basis von Mocks. 
 Mocking ermöglicht es uns das wir tests anhand des neuen Architekturmodells schreiben können ohne das bestimmte Elemente
 im Code dafür existieren müssen.
@@ -2917,7 +2917,7 @@ Tests wurden für alle 3 Hauptfunktionen geschrieben (Users, Tasks, Reports):
 
 ### 4.2.1 Test für Erstellung eines Admins über CLI
 
-#### fake_user_repository.py
+#### `fake_user_repository.py`
 ```python
 class FakeUserRepository:
     def __init__(self):
@@ -2938,7 +2938,7 @@ class FakeUserRepository:
 ```
 
 
-#### test_create_admin_user_cli.py
+#### `test_create_admin_user_cli.py`
 ```python
 from tests.fakes.fake_user_repository import FakeUserRepository
 
@@ -2974,7 +2974,7 @@ Für unsere REST Tests gehen wir davon aus das man den Client von Außerhalb mit
 um so unabhängige Restausführungen testen zu können
 
 
-#### fake_report_repository.py
+#### `fake_report_repository.py`
 ```python
 class FakeReportRepository:
     def init(self):
@@ -2992,7 +2992,7 @@ class FakeReportRepository:
 
 ```
 
-#### test_create_weekly_report_rest.py
+#### `test_create_weekly_report_rest.py`
 ```python
 from tests.fakes.fake_report_repository import FakeReportRepository
 
@@ -3018,7 +3018,7 @@ def test_create_weekly_report_via_rest(client):
 ```
 
 ### 4.2.3 Test für Löschen eines Tasks über REST
-#### fake_task_repository.py
+#### `fake_task_repository.py`
 ```python
 class FakeTaskRepository:
     def __init__(self):
@@ -3044,7 +3044,7 @@ class FakeTaskRepository:
         return self.tasks
 ```
 
-#### test_delete_task_via_rest.py
+#### `test_delete_task_via_rest.py`
 ```python
 from tests.fakes.fake_task_repository import FakeTaskRepository
 
@@ -3069,7 +3069,7 @@ def test_delete_task_via_rest(client):
     assert response.status_code == 200
     assert fake_repo.get_task(1) is None
 ```
-# 4.3 Fitness Functions
+## 4.3 Fitness Functions
 
 Die Fitness Functions beziehen sich, genau wie die Integrationstests in 4.2, auf neue Architekturmodell aus Kapitel 2 und sollen automatisiert prüfen ob Architekturregeln anhand der ausgewählten Architektur eingehalten werden.
 
@@ -3192,7 +3192,7 @@ def test_no_direct_database_or_infrastructure_use_in_entrypoints() -> None:
 
 Fake für Benachrichtigungen:
 
-fakes.py:
+#### `fakes.py`
 ```python
 @dataclass(slots=True)
 class SentNotification:
