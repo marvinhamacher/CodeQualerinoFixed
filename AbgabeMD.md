@@ -113,24 +113,24 @@
 - **Severity:** **High**, da die hohe Kopplung die Erweiterbarkeit und Testbarkeit der zentralen Geschäftslogik erheblich einschränkt.
 
 # 2 Architektur 
-In diesem Kapitel wird anhand, von den innerhalb der Vorlesung beigebrachten Inhalten,
-die Architektur des Projektes neubestimmt. Ziel ist die Architektur anhand beigebrachter Modelle und gängigen Mustern zu
+In diesem Kapitel wird anhand der innerhalb der Vorlesung beigebrachten Inhalte
+die Architektur des Projektes neubestimmt. Ziel ist die Architektur anhand beigebrachter Modelle und gängiger Muster zu
 verbessern.
 
 ## 2.1 Wahl eines Architekturmodells
-Zur Auswahl standen diverse Architekturmodelle. Wir haben uns für eine klar geteilte Hexagonale Architektur
-entschieden. Im endeffekt kann jede Architektur entschieden gewählt werden, Architekturansätze wie EDA und Microservice 
-können in abgewandelter Form als zusätzliche Architektur abstraktion genutzt werden.
+Zur Auswahl standen diverse Architekturmodelle. Wir haben uns für eine klar geteilte hexagonale Architektur
+entschieden. Im Endeffekt kann jede Architektur entschieden gewählt werden, Architekturansätze wie EDA und Microservice 
+können in abgewandelter Form als zusätzliche Architekturabstraktion genutzt werden.
 
 ### 2.1.1 Warum Hexagonal?
-Die hexagonale Architektur erlaubt es, Komponente auszutauschen. 
-Der JsonTaskRepository das in einer Umsetzung vonnöten wäre, kann zum Beispiel durch MSSQLTaskRepository ersetzt werden, 
-ohne dabei die Klassen mit der Geschäftslogik umzuschreiben. 
-Des Weiteren wird durch die hexagonale Architektur SOLID besser eingehalten denn High-Level-Komponente hängen von 
+Die hexagonale Architektur erlaubt es, Komponenten auszutauschen. 
+Das JsonTaskRepository, das in einer Umsetzung vonnöten wäre, kann zum Beispiel durch MSSQLTaskRepository ersetzt werden. 
+Ohne dabei die Klassen mit der Geschäftslogik umzuschreiben. 
+Des Weiteren wird durch die hexagonale Architektur SOLID besser eingehalten, denn High-Level-Komponenten hängen von 
 Abstraktionen statt von technischen Klassen ab und DIP wird durch Ports umgesetzt. Ebenfalls können mehrere Eingabekanäle
 ermöglicht werden, indem Use-Cases definiert und an die Eingabekanäle übergeben werden. 
 
-Wie in Kapitel 4 demonstriert ermöglicht die hexagonale Architektur eine gute Testbarkeit mithilfe von Fake- oder Mock-Repositories,
+Wie in Kapitel 4 demonstriert, ermöglicht die hexagonale Architektur eine gute Testbarkeit mithilfe von Fake- oder Mock-Repositories,
 ohne dabei die echte Infrastruktur zu verwenden.
 
 ### 2.1.2 Warum kein MVC?
@@ -1605,7 +1605,7 @@ Dadurch kann zwischen unterschiedlichen Implementierungen oder Konfigurationen g
 ohne Änderungen an der Geschäftslogik des `TaskManager` vorzunehmen.
 
 ## 3.2 Einsatz von mehreren Mustern (3)
-### Umsetzung des Strategy Patterns für Benachrichtigungen
+### 3.2.1 Umsetzung des Strategy Patterns für Benachrichtigungen
 
 #### `notification_strategy.py`
 ```python
@@ -1676,7 +1676,7 @@ class NotificationCenter:
         return self.notify(user, channel, "[URGENT] " + subject, body)
 ```
 
-### Umsetzung des Facade Patterns für die Datenbank
+### 3.2.2 Umsetzung des Facade Patterns für die Datenbank
 
 Drei fachlich getrennte Facades für User, Tasks und Reports
 
@@ -1763,7 +1763,7 @@ class ReportFacade:
         )
 ```
 
-### Umsetzung des Command Patterns für Task Manager
+### 3.2.3 Umsetzung des Command Patterns für Task Manager
 
 #### `commands.py`
 ```python
@@ -2980,11 +2980,12 @@ class JsonCredentialStore:
 
 # 4 QS
 
-## 4.1 Unit Tests (3)
-Unit Tests wurden für das existierende Projekt geschrieben. 
+## 4.1 Unit-Tests (3)
+Unit-Tests wurden für das existierende Projekt geschrieben. 
 
 
 ### 4.1.1 Prüfung für nichtexistente Status und Überprüfung ob Status aktualisieren funktioniert
+
 Aktuell gibt es im Projekt nur:
 ```
 [
@@ -3083,9 +3084,9 @@ def test_user_can_be_deleted():
 
     assert result is True
 ```
-## 4.2 Integrationstests bzw Tests für Kernlogik
-In den folgenden Kapitel werden Kernfunktionen getestet jedoch auf basis von Mocks. 
-Mocking ermöglicht es uns das wir tests anhand des neuen Architekturmodells schreiben können ohne das bestimmte Elemente
+## 4.2 Integrationstests bzw. Tests für Kernlogik
+In den folgenden Kapiteln werden Kernfunktionen getestet, jedoch auf Basis von Mocks. 
+Mocking ermöglicht es uns, dass wir Tests anhand des neuen Architekturmodells schreiben können, ohne dass bestimmte Elemente
 im Code dafür existieren müssen.
 
 Tests wurden für alle 3 Hauptfunktionen geschrieben (Users, Tasks, Reports):
@@ -3148,7 +3149,7 @@ def test_create_admin_user_via_cli():
     assert created_user["role"] == "admin"
 ```
 ### 4.2.2 Test für Erstellung eines Reports über REST
-Für unsere REST Tests gehen wir davon aus das man den Client von Außerhalb mitgeben kann, 
+Für unsere REST-Tests gehen wir davon aus, dass man den Client von außerhalb mitgeben kann, 
 um so unabhängige Restausführungen testen zu können
 
 
@@ -3249,12 +3250,12 @@ def test_delete_task_via_rest(client):
 ```
 ## 4.3 Fitness Functions
 
-Die Fitness Functions beziehen sich, genau wie die Integrationstests in 4.2, auf neue Architekturmodell aus Kapitel 2 und sollen automatisiert prüfen ob Architekturregeln anhand der ausgewählten Architektur eingehalten werden.
+Die Fitness-Functions beziehen sich, genau wie die Integrationstests in 4.2, auf das neue Architekturmodell aus Kapitel 2 und sollen automatisiert prüfen, ob Architekturregeln anhand der ausgewählten Architektur eingehalten werden.
 
-### Test um sicherzustellen, dass Schichtabhängigkeiten nach innen zeigen:
+### Test, um sicherzustellen, dass Schichtabhängigkeiten nach innen zeigen:
 
 `test_dependency_rules.py` prüft, dass Abhängigkeiten nur nach innen zeigen. Das verhindert, dass innere
-Schichten äußere Schichten improtieren.
+Äußere Schichten importieren.
 
 ```python
 SRC = Path("src/Example_Project")
