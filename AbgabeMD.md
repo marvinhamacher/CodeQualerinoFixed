@@ -1979,7 +1979,7 @@ class TaskManager:
         return self.db.get_task(tid)
 ```
 
-## 3.3 ADRs für Refactoring anhand SOLID-korrektur und Patterns
+## 3.3 ADRs für Refactoring anhand SOLID-Korrektur und Patterns
 ### ADR-001: Einführung einer hexagonalen Architektur
 
 - **Status:** Akzeptiert
