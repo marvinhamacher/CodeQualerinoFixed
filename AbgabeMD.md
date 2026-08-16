@@ -2983,12 +2983,12 @@ class JsonCredentialStore:
 
 # 4 QS
 
-## 4.1 Unit Tests (3)
-Unit Tests wurden für das existierende Projekt geschrieben. 
+## 4.1 Unit-Tests (3)
+Unit-Tests wurden für das existierende Projekt geschrieben. 
 
 
 ### 4.1.1 Prüfung für nichtexistente Status und Überprüfung ob Status aktualisieren funktioniert
-Aktuell gibt es im projekt nur :
+Aktuell gibt es im projekt nur:
 ```
 [
     "new",
@@ -3086,9 +3086,9 @@ def test_user_can_be_deleted():
 
     assert result is True
 ```
-## 4.2 Integrationstests bzw Tests für Kernlogik
-In den folgenden Kapitel werden Kernfunktionen getestet jedoch auf basis von Mocks. 
-Mocking ermöglicht es uns das wir tests anhand des neuen Architekturmodells schreiben können ohne das bestimmte Elemente
+## 4.2 Integrationstests bzw. Tests für Kernlogik
+In den folgenden Kapiteln werden Kernfunktionen getestet, jedoch auf Basis von Mocks. 
+Mocking ermöglicht es uns, dass wir Tests anhand des neuen Architekturmodells schreiben können, ohne dass bestimmte Elemente
 im Code dafür existieren müssen.
 
 Tests wurden für alle 3 Hauptfunktionen geschrieben (Users, Tasks, Reports):
@@ -3151,7 +3151,7 @@ def test_create_admin_user_via_cli():
     assert created_user["role"] == "admin"
 ```
 ### 4.2.2 Test für Erstellung eines Reports über REST
-Für unsere REST Tests gehen wir davon aus das man den Client von Außerhalb mitgeben kann, 
+Für unsere REST-Tests gehen wir davon aus, dass man den Client von außerhalb mitgeben kann, 
 um so unabhängige Restausführungen testen zu können
 
 
@@ -3252,12 +3252,12 @@ def test_delete_task_via_rest(client):
 ```
 ## 4.3 Fitness Functions
 
-Die Fitness Functions beziehen sich, genau wie die Integrationstests in 4.2, auf neue Architekturmodell aus Kapitel 2 und sollen automatisiert prüfen ob Architekturregeln anhand der ausgewählten Architektur eingehalten werden.
+Die Fitness-Functions beziehen sich, genau wie die Integrationstests in 4.2, auf das neue Architekturmodell aus Kapitel 2 und sollen automatisiert prüfen, ob Architekturregeln anhand der ausgewählten Architektur eingehalten werden.
 
-### Test um sicherzustellen, dass Schichtabhängigkeiten nach innen zeigen:
+### Test, um sicherzustellen, dass Schichtabhängigkeiten nach innen zeigen:
 
 `test_dependency_rules.py` prüft, dass Abhängigkeiten nur nach innen zeigen. Das verhindert, dass innere
-Schichten äußere Schichten improtieren.
+Äußere Schichten importieren.
 
 ```python
 SRC = Path("src/Example_Project")
