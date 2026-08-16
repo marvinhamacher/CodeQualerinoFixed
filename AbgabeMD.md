@@ -1608,7 +1608,7 @@ Dadurch kann zwischen unterschiedlichen Implementierungen oder Konfigurationen g
 ohne Änderungen an der Geschäftslogik des `TaskManager` vorzunehmen.
 
 ## 3.2 Einsatz von mehreren Mustern (3)
-### Umsetzung des Strategy Patterns für Benachrichtigungen
+### 3.2.1 Umsetzung des Strategy Patterns für Benachrichtigungen
 
 #### `notification_strategy.py`
 ```python
@@ -1679,7 +1679,7 @@ class NotificationCenter:
         return self.notify(user, channel, "[URGENT] " + subject, body)
 ```
 
-### Umsetzung des Facade Patterns für die Datenbank
+### 3.2.2 Umsetzung des Facade Patterns für die Datenbank
 
 Drei fachlich getrennte Facades für User, Tasks und Reports
 
@@ -1766,7 +1766,7 @@ class ReportFacade:
         )
 ```
 
-### Umsetzung des Command Patterns für Task Manager
+### 3.2.3 Umsetzung des Command Patterns für Task Manager
 
 #### `commands.py`
 ```python
