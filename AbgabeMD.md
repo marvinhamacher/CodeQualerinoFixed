@@ -297,17 +297,14 @@ PUSH --> Config
 
 ## 3.1 Behebung der 5 SOLID - Verletzung
 
-Oben wurden sich 5 SOLID - Verletzungen im Detail angesehen.
-Folgend werden 5 Verletzungen mit Sourcecode behoben. 
-Die Fixes bestehen in sich selber und sind unabhängige vorschläge, jedoch können sie in anderen Kapitel, sofern notiert als ausgangslage vorliegen.
-Sie betrachten einzelne Fixes für die jeweiligen Klassen und nicht eine Klasse wo alle fehler auf ein mal behoben werden.
-Die Einzelbetrachtung sollen zeigen, dass die ursache des Problems verstanden wurde und auch verstanden wurde wie diese zu beheben ist.
+Oben wurden sich 5 SOLID‑Verletzungen im Detail angesehen. 
+Folgend werden 5 Verletzungen mit Sourcecode behoben. Die Fixes bestehen in sich selber und sind unabhängige Vorschläge, jedoch können sie in anderen Kapiteln, sofern notiert, als Ausgangslage vorliegen. Sie betrachten einzelne Fixes für die jeweiligen Klassen und nicht eine Klasse, wo alle Fehler auf einmal behoben werden. Die Einzelbetrachtungen sollen zeigen, dass die Ursache des Problems verstanden wurde und auch verstanden wurde, wie diese zu beheben ist.
 
 ### 3.1.1 Single Responsibility Principle bei `task_manager.py`
 `task_manager.py` hat aktuell Methoden, die nicht nur für das Verwalten von Aufgaben wichtig sind. 
-Beispielsweise besitzt die Datei die Methode set_reminder und find_overdue welche die Logik zum Ermitteln überfälliger Aufgaben sowie das Versenden von Erinnerungen übernehmen. 
+Beispielsweise besitzt die Datei die Methoden `set_reminder` und `find_overdue`, welche die Logik zum Ermitteln überfälliger Aufgaben sowie das Versenden von Erinnerungen übernehmen. 
 Diese Verantwortlichkeiten gehören jedoch nicht zur eigentlichen Aufgabenverwaltung.
-Auch die Methode format_task kann ausgelagert werden da sie keine CRUD-relevante Aufgabe übernimmt und nur von der Methode Main aufgerufen wird. 
+Auch die Methode `format_task` kann ausgelagert werden, da sie keine CRUD-relevante Aufgabe übernimmt und nur von der Methode Main aufgerufen wird. 
 
 
 ### Vorher
@@ -876,7 +873,7 @@ class UserRepository(Database):
 ### 3.1.3 Open/Close Principle bei `report_generator.py` ist verletzt.
 `report_generator.py` besitzt aktuell für jede Berichtsart eine eigene Methode (`daily_report()`, `weekly_report()`, `monthly_report()`). Zusätzlich entscheidet die Methode `email_report()` mittels einer `if`-/`elif`-Verzweigung, welcher Bericht erzeugt werden soll.
 
-Problem an der Jetzigen umsetzung war dass jede neue ReportArt den `report_generator.py` komplett funktional erweitern müsste, somit wird die Datei bei vermehrter Erweiterung unübersichtlich. Es müssen sowohl eine neue Methode implementiert als auch die bestehende Verzweigung in `email_report()` erweitert werden. Dadurch ist die Klasse nicht für Erweiterungen offen.
+Problem an der jetzigen Umsetzung war, dass jede neue ReportArt den `report_generator.py` komplett funktional erweitern müsste. Somit wird die Datei bei vermehrter Erweiterung unübersichtlich. Es müssen sowohl eine neue Methode implementiert als auch die bestehende Verzweigung in `email_report()` erweitert werden. Dadurch ist die Klasse nicht für Erweiterungen offen.
 
 Um das **Open/Closed Principle** einzuhalten, sollte eine abstrakte Basisklasse `Report` eingeführt werden. Diese definiert lediglich die gemeinsame Schnittstelle zur Berichtserstellung über die Methode `generate()`.
 
@@ -1257,8 +1254,8 @@ class ReadOnlyUser(User):
 
 ### Nachher
 
-Es ist besser die Types in eigenen Dateien abzubilden. Python ermöglicht zwar im Vergleich zu anderen Programmierprachen wie JAVA, das mehrere
-Klassen in einer Datei sind, jedoch geht dadurch die übersicht verloren.
+Es ist besser, die Types in eigenen Dateien abzubilden. Python ermöglicht zwar im Vergleich zu anderen Programmierprachen wie JAVA, dass mehrere
+Klassen in einer Datei sind, jedoch geht dadurch die Übersicht verloren.
 
 #### `user.py`
 
@@ -2346,8 +2343,8 @@ class HistoryRepository:
         return self.history
 ```
 
-Der `history_service.py` kümmert sich überwiegend um das laden eines bestimmten Task. Ebenfalls entfernt der Service
-den Assigne somit besteht rückwirkend keine referenz mehr auf private Daten.
+Der `history_service.py` kümmert sich überwiegend um das Laden eines bestimmten Task. Ebenfalls entfernt der Service
+den Assigne somit besteht rückwirkend keine Referenz mehr auf private Daten.
 ```python
 from copy import deepcopy
 
@@ -2675,10 +2672,10 @@ service.exportToFile(entity, "txt", "tasks.txt");
 ### 3.4.3 Authentifizierungs Service
 
 Stand jetzt befindet sich im System kein Authsystem. 
-In der Regel wird mit Salting und Hashing gearbeitet, um das umzusetzen wird die Bibliothek `` verwendet.
-Ähnlich wie der Rest der DB-Struktur findet die Speicherung aller information auf Basis von JSON statt.
+In der Regel wird mit Salting und Hashing gearbeitet, um das umzusetzen wird die Bibliothek `hashlib` verwendet.
+Ähnlich wie der Rest der DB-Struktur findet die Speicherung aller Information auf Basis von JSON statt.
 
-Die `models.py` beinhaltet alle Datenentitäten wie `AuthenticatedUser` , `Session` und `AuthenticationResult`
+Die `models.py` beinhaltet alle Datenentitäten wie `AuthenticatedUser`, `Session` und `AuthenticationResult`
 ```python
 @dataclass(frozen=True)
 class AuthenticatedUser:
@@ -2703,9 +2700,9 @@ class AuthenticationResult:
 
 Jedes moderne Authsystem verarbeitet Passwörter anhand von Hashing.
 Der `HashService` implementiert:
-- statische Funktionen zum Ver und Entschlüsseln von Texteingaben
+- statische Funktionen zum Ver- und Entschlüsseln von Texteingaben
 - Methoden zur Passwortverifizierung
-- Methoden zur errechnung neuer hashes
+- Methoden zur Errechnung neuer Hashes
 ```python
 import base64
 import hashlib
@@ -2760,8 +2757,8 @@ class HashingService:
 ```
 
 Das `SessionManagementService` kümmert sich um das Verwalten von Nutzersessions anhand von Tokens. 
-Dabei werden sessions anhand von Tokens gespeichert. Auch die kernlogik von Logouts werden hier umgesetzt. 
-Schließlich muss der vergebene Token verschwinden, wenn ein Nutzer sich abmelden will. 
+Dabei werden Sessions anhand von Tokens gespeichert. Auch die Kernlogik von Logouts werden hier umgesetzt. 
+Schließlich muss der vergebene Token verschwinden, wenn ein Nutzer sich abmelden will.
 ```python
 from datetime import datetime, timedelta, timezone
 import secrets
@@ -2988,7 +2985,8 @@ Unit-Tests wurden für das existierende Projekt geschrieben.
 
 
 ### 4.1.1 Prüfung für nichtexistente Status und Überprüfung ob Status aktualisieren funktioniert
-Aktuell gibt es im projekt nur:
+
+Aktuell gibt es im Projekt nur:
 ```
 [
     "new",
@@ -2998,7 +2996,7 @@ Aktuell gibt es im projekt nur:
 ]
 ```
 
-der Status "archived" sollte dementsprechend nicht akzeptiert werden
+der Status `archived` sollte dementsprechend nicht akzeptiert werden
 
 ```python
 def test_update_status_rejects_unknown_status_without_saving():
