@@ -1,4 +1,62 @@
 # 0. Inhaltsverzeichnis
+- [1 Verletzung von architektonischen Prinzipien](#1-verletzung-von-architektonischen-prinzipien)
+  - [1.1 Verletzung SOLID, Testbarkeit, Architektur und Modellierung im Überblick](#11-verletzung-solid-testbarkeit-architektur-und-modellierung-im-überblick)
+    - [1.1.1 Schwere Verletzungen](#111-schwere-verletzungen)
+    - [1.1.2 Mittelschwerwiegende Verletzungen](#112-mittelschwerwiegende-verletzungen)
+    - [1.1.3 Leichte Verletzungen](#113-leichte-verletzungen)
+    - [1.1.4 Architektonische Empfehlungen](#114-architektonische-empfehlungen)
+  - [1.2 Fünf SOLID Verletzungen im Detail](#12-fünf-solid-verletzungen-im-detail)
+    - [1.2.1 Single Responsibility Principle bei `task_manager.py` verletzt](#121-single-responsibility-principle-bei-task_managerpy-verletzt)
+    - [1.2.2 Single Responsibility Principle bei `database.py` verletzt](#122-single-responsibility-principle-bei-databasepy-verletzt)
+    - [1.2.3 Open/Closed Principle bei `report_generator.py` verletzt](#123-openclosed-principle-bei-report_generatorpy-verletzt)
+    - [1.2.4 Liskov Substitution Principle bei `user_types.py` verletzt](#124-liskov-substitution-principle-bei-user_typespy-verletzt)
+    - [1.2.5 Dependency Inversion Principle bei `task_manager.py` verletzt](#125-dependency-inversion-principle-bei-task_managerpy-verletzt)
+
+- [2 Architektur](#2-architektur)
+  - [2.1 Wahl eines Architekturmodells](#21-wahl-eines-architekturmodells)
+    - [2.1.1 Warum Hexagonal?](#211-warum-hexagonal)
+    - [2.1.2 Warum kein MVC?](#212-warum-kein-mvc)
+    - [2.1.3 Warum keine Schichtenarchitektur?](#213-warum-keine-schichtenarchitektur)
+    - [2.1.4 Warum keine Microservices?](#214-warum-keine-microservices)
+    - [2.1.5 Warum keine EDA?](#215-warum-keine-eda)
+  - [2.2 Schichtendiagramm](#22-schichtendiagramm)
+  - [2.3 Ports und Interfaces](#23-ports-und-interfaces)
+
+- [3 Refactoring](#3-refactoring)
+  - [3.1 Behebung der 5 SOLID-Verletzung](#31-behebung-der-5-solid-verletzung)
+    - [3.1.1 Single Responsibility Principle bei `task_manager.py` verletzt](#311-single-responsibility-principle-bei-task_managerpy-verletzt)
+    - [3.1.2 Single Responsibility Principle bei `database.py` verletzt](#312-single-responsibility-principle-bei-databasepy-verletzt)
+    - [3.1.3 Open/Close Principle bei `report_generator.py` ist verletzt](#313-openclose-principle-bei-report_generatorpy-ist-verletzt)
+    - [3.1.4 Liskov Substitution Principle bei `user_types.py` verletzt](#314-liskov-substitution-principle-bei-user_typespy-verletzt)
+    - [3.1.5 Dependency Inversion Principle bei `task_manager.py` verletzt](#315-dependency-inversion-principle-bei-task_managerpy-verletzt)
+  - [3.2 Einsatz von mehreren Mustern (3)](#32-einsatz-von-mehreren-mustern-3)
+    - [3.2.1 Umsetzung des Strategy Patterns für Benachrichtigungen](#321-umsetzung-des-strategy-patterns-für-benachrichtigungen)
+    - [3.2.2 Umsetzung des Facade Patterns für die Datenbank](#322-umsetzung-des-facade-patterns-für-die-datenbank)
+    - [3.2.3 Umsetzung des Command Patterns für Task Manager](#323-umsetzung-des-command-patterns-für-task-manager)
+  - [3.3 ADRs für Refactoring anhand SOLID-Korrektur und Patterns](#33-adrs-für-refactoring-anhand-solid-korrektur-und-patterns)
+    - [ADR-001: Einführung einer hexagonalen Architektur](#adr-001-einführung-einer-hexagonalen-architektur)
+    - [ADR-002: Verwendung des Command Patterns für Aufgabenaktionen](#adr-002-verwendung-des-command-patterns-für-aufgabenaktionen)
+    - [ADR-003: Verwendung des Strategy Patterns für Benachrichtigungskanäle](#adr-003-verwendung-des-strategy-patterns-für-benachrichtigungskanäle)
+    - [ADR-004: Verwendung des Facade Patterns für den Datenzugriff](#adr-004-verwendung-des-facade-patterns-für-den-datenzugriff)
+  - [3.4 Neue Features (3)](#34-neue-features-3)
+    - [3.4.1 Historisierung von Tasks](#341-historisierung-von-tasks)
+    - [3.4.2 Export von Dateien](#342-export-von-dateien)
+    - [3.4.3 Authentifizierungs Service](#343-authentifizierungs-service)
+
+- [4 QS](#4-qs)
+  - [4.1 Unit-Tests (3)](#41-unit-tests-3)
+    - [4.1.1 Prüfung für nichtexistente Status und Überprüfung ob Status aktualisieren funktioniert](#411-prüfung-für-nichtexistente-status-und-überprüfung-ob-status-aktualisieren-funktioniert)
+    - [4.1.2 Prüfung, ob neu erstellte Tasks im Daily Report berücksichtigt werden](#412-prüfung-ob-neu-erstellte-tasks-im-daily-report-berücksichtigt-werden)
+    - [4.1.3 Prüfung ob man User löschen bzw. deaktivieren kann](#413-prüfung-ob-man-user-löschen-bzw-deaktivieren-kann)
+  - [4.2 Integrationstests bzw. Tests für Kernlogik](#42-integrationstests-bzw-tests-für-kernlogik)
+    - [4.2.1 Test für Erstellung eines Admins über CLI](#421-test-für-erstellung-eines-admins-über-cli)
+    - [4.2.2 Test für Erstellung eines Reports über REST](#422-test-für-erstellung-eines-reports-über-rest)
+    - [4.2.3 Test für Löschen eines Tasks über REST](#423-test-für-löschen-eines-tasks-über-rest)
+  - [4.3 Fitness Functions](#43-fitness-functions)
+    - [Test, um sicherzustellen, dass Schichtabhängigkeiten nach innen zeigen](#test-um-sicherzustellen-dass-schichtabhängigkeiten-nach-innen-zeigen)
+    - [Test für zyklische Importe](#test-für-zyklische-importe)
+    - [Test damit Entry Points keine Infrastructure/Outbound-Adapter direkt nutzen](#test-damit-entry-points-keine-infrastructureoutbound-adapter-direkt-nutzen)
+    - [Fakes](#fakes)
 
 
 
@@ -6,8 +64,7 @@
 
 
 
-
-# 1 Verletzung von architektonischen
+# 1 Verletzung von architektonischen Prinzipien
 
 ## 1.1 Verletzung SOLID, Testbarkeit, Architektur und Modellierung im Überblick
 
