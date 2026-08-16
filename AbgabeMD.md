@@ -113,24 +113,24 @@
 - **Severity:** **High**, da die hohe Kopplung die Erweiterbarkeit und Testbarkeit der zentralen Geschäftslogik erheblich einschränkt.
 
 # 2 Architektur 
-In diesem Kapitel wird anhand, von den innerhalb der Vorlesung beigebrachten Inhalten,
-die Architektur des Projektes neubestimmt. Ziel ist die Architektur anhand beigebrachter Modelle und gängigen Mustern zu
+In diesem Kapitel wird anhand der innerhalb der Vorlesung beigebrachten Inhalte
+die Architektur des Projektes neubestimmt. Ziel ist die Architektur anhand beigebrachter Modelle und gängiger Muster zu
 verbessern.
 
 ## 2.1 Wahl eines Architekturmodells
-Zur Auswahl standen diverse Architekturmodelle. Wir haben uns für eine klar geteilte Hexagonale Architektur
-entschieden. Im endeffekt kann jede Architektur entschieden gewählt werden, Architekturansätze wie EDA und Microservice 
-können in abgewandelter Form als zusätzliche Architektur abstraktion genutzt werden.
+Zur Auswahl standen diverse Architekturmodelle. Wir haben uns für eine klar geteilte hexagonale Architektur
+entschieden. Im Endeffekt kann jede Architektur entschieden gewählt werden, Architekturansätze wie EDA und Microservice 
+können in abgewandelter Form als zusätzliche Architekturabstraktion genutzt werden.
 
 ### 2.1.1 Warum Hexagonal?
-Die hexagonale Architektur erlaubt es, Komponente auszutauschen. 
-Der JsonTaskRepository das in einer Umsetzung vonnöten wäre, kann zum Beispiel durch MSSQLTaskRepository ersetzt werden, 
-ohne dabei die Klassen mit der Geschäftslogik umzuschreiben. 
-Des Weiteren wird durch die hexagonale Architektur SOLID besser eingehalten denn High-Level-Komponente hängen von 
+Die hexagonale Architektur erlaubt es, Komponenten auszutauschen. 
+Das JsonTaskRepository, das in einer Umsetzung vonnöten wäre, kann zum Beispiel durch MSSQLTaskRepository ersetzt werden. 
+Ohne dabei die Klassen mit der Geschäftslogik umzuschreiben. 
+Des Weiteren wird durch die hexagonale Architektur SOLID besser eingehalten, denn High-Level-Komponenten hängen von 
 Abstraktionen statt von technischen Klassen ab und DIP wird durch Ports umgesetzt. Ebenfalls können mehrere Eingabekanäle
 ermöglicht werden, indem Use-Cases definiert und an die Eingabekanäle übergeben werden. 
 
-Wie in Kapitel 4 demonstriert ermöglicht die hexagonale Architektur eine gute Testbarkeit mithilfe von Fake- oder Mock-Repositories,
+Wie in Kapitel 4 demonstriert, ermöglicht die hexagonale Architektur eine gute Testbarkeit mithilfe von Fake- oder Mock-Repositories,
 ohne dabei die echte Infrastruktur zu verwenden.
 
 ### 2.1.2 Warum kein MVC?
