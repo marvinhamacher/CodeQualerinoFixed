@@ -3132,7 +3132,7 @@ um so unabhängige Restausführungen testen zu können
 #### `fake_report_repository.py`
 ```python
 class FakeReportRepository:
-    def init(self):
+    def __init__(self):
         self.reports = {}
 
     def save_report(self, report_id, report):
