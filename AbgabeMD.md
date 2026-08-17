@@ -531,7 +531,6 @@ from reminder_service import ReminderService
 from task_formatter import TaskFormatter
 
 class TaskManager:
-
     def __init__(self):
         self.database = Database()
         self.user_manager = UserManager()
@@ -606,7 +605,6 @@ from datetime import datetime
 from notifications import NotificationCenter
 
 class ReminderService:
-
     def __init__(self, database, user_manager):
         self.database = database
         self.user_manager = user_manager
@@ -650,7 +648,6 @@ class ReminderService:
 
 ```python
 class TaskFormatter:
-
     def format_task(self, task):
         if task is None:
             return "??"
@@ -792,11 +789,6 @@ from config import DB_FILE, USER_FILE
 
 
 class Database(ABC):
-    """
-    Abstrakte Basisklasse für Persistenz.
-    Definiert nur die gemeinsame Schnittstelle.
-    """
-
     def __init__(self, file_path):
         self.file_path = file_path
         self.data = {}
@@ -824,10 +816,6 @@ class Database(ABC):
 
 
 class TaskRepository(Database):
-    """
-    Verantwortlich für die Persistenz von Tasks.
-    """
-
     def __init__(self):
         super().__init__(DB_FILE)
 
@@ -878,10 +866,6 @@ class TaskRepository(Database):
 
 
 class UserRepository(Database):
-    """
-    Responsible for the persistance of Users
-    """
-
     def __init__(self):
         super().__init__(USER_FILE)
 
@@ -1078,7 +1062,6 @@ from task_repository import TaskRepository
 
 
 class Report(ABC):
-
     def __init__(self):
         self.repository = TaskRepository()
 
@@ -1122,7 +1105,6 @@ from report import Report
 
 
 class DailyReport(Report):
-
     def generate(self):
         new, done, open_tasks = self._count_tasks(1)
 
@@ -1143,7 +1125,6 @@ from report import Report
 
 
 class WeeklyReport(Report):
-
     def generate(self):
         new, done, open_tasks = self._count_tasks(7)
 
@@ -1164,7 +1145,6 @@ from report import Report
 
 
 class MonthlyReport(Report):
-
     def generate(self):
         new, done, open_tasks = self._count_tasks(30)
 
@@ -1188,7 +1168,6 @@ from monthly_report import MonthlyReport
 
 
 class ReportGenerator:
-
     def __init__(self):
         self.email_service = EmailService()
 
@@ -1266,8 +1245,6 @@ Das Resultat ermöglicht ein frei kombinierbares Permissionssystem.
 #### `user_types.py`
 ```python
 class User:
-    """Basisklasse fuer alle Benutzer."""
-
     def __init__(self, uid, name, email):
         self.uid = uid
         self.nm = name
@@ -1299,8 +1276,6 @@ class AdminUser(User):
 
 
 class ReadOnlyUser(User):
-    """Benutzer ohne Schreibrechte."""
-
     def update_email(self, new_email):
         raise PermissionError("ReadOnly-Benutzer koennen ihre E-Mail nicht aendern")
 
@@ -1318,7 +1293,6 @@ Klassen in einer Datei sind, jedoch geht dadurch die Übersicht verloren.
 
 ```python
 class User:
-
     def __init__(self, uid, name, email):
         self.uid = uid
         self.name = name
@@ -1336,7 +1310,6 @@ from user import User
 
 
 class EditableUser(User, ABC):
-
     @abstractmethod
     def update_email(self, new_email):
         pass
@@ -1350,7 +1323,6 @@ from user import User
 
 
 class DeletableUser(User, ABC):
-
     @abstractmethod
     def delete_account(self):
         pass
@@ -1364,7 +1336,6 @@ from deletable_user import DeletableUser
 
 
 class StandardUser(EditableUser, DeletableUser):
-
     def update_email(self, new_email):
         self.email = new_email
         return True
@@ -1380,7 +1351,6 @@ from editable_user import EditableUser
 
 
 class AdminUser(EditableUser):
-
     def __init__(self, uid, name, email):
         super().__init__(uid, name, email)
         self.permissions = ["read", "write", "delete", "admin"]
@@ -1597,7 +1567,6 @@ class TaskManager:
 
 ```python
 class TaskManager:
-
     def __init__(
         self,
         database,
@@ -2361,7 +2330,6 @@ from history_repository import HistoryRepository
 
 
 class HistoryService:
-
     def __init__(self):
         self.database = Database()
         self.repository = HistoryRepository()
@@ -2393,7 +2361,6 @@ from config import HISTORY_FILE
 
 
 class HistoryRepository:
-
     def __init__(self):
         self.history = {}
         os.makedirs(os.path.dirname(HISTORY_FILE), exist_ok=True)
@@ -2773,7 +2740,6 @@ import secrets
 
 
 class SessionManagementService:
-
     def __init__(self, session_lifetime_minutes=30):
         self.session_lifetime = timedelta(minutes=session_lifetime_minutes)
         self._sessions = {}
@@ -3185,16 +3151,9 @@ from tests.fakes.fake_report_repository import FakeReportRepository
 
 
 def test_create_weekly_report_via_rest(client):
-    # Arrange
     fake_repo = FakeReportRepository()
 
-    # fake_repo mit dem vom client verwendeten
-    # CreateWeeklyReportUseCase verbinden
-
-    # Act
     response = client.post("/reports/weekly")
-
-    # Assert
     assert response.status_code == 201
 
     created_report = fake_repo.get_report(1)
@@ -3237,7 +3196,6 @@ from tests.fakes.fake_task_repository import FakeTaskRepository
 
 
 def test_delete_task_via_rest(client):
-    # Arrange
     fake_repo = FakeTaskRepository()
 
     fake_repo.save_task(
@@ -3249,10 +3207,8 @@ def test_delete_task_via_rest(client):
         }
     )
 
-    # Act
     response = client.delete("/tasks/1")
 
-    # Assert
     assert response.status_code == 200
     assert fake_repo.get_task(1) is None
 ```
@@ -3268,7 +3224,6 @@ Die Fitness-Functions beziehen sich, genau wie die Integrationstests in 4.2, auf
 ```python
 SRC = Path("src/Example_Project")
 
-# domain <- application <- adapters; infrastructure is consumed only by outbound adapters.
 FORBIDDEN_PREFIXES: dict[str, tuple[str, ...]] = {
     "domain": ("Example_Project.application", "Example_Project.adapters", "Example_Project.infrastructure"),
     "application": ("Example_Project.adapters", "Example_Project.infrastructure"),
