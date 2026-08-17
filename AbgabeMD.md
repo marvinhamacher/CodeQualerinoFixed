@@ -3016,6 +3016,7 @@ def test_update_status_to_done_saves_and_sends_completion_email():
         users={10: user}
     )
 
+    # updating status also send email
     result = manager.update_status(
         101,
         "done"
