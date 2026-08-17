@@ -2314,12 +2314,6 @@ class Database:
 
 
 ```
-Der `HistoryService` übernimmt dabei die Geschäftslogik:
-
-- Laden der Aufgabe
-- Anonymisieren personenbezogener Daten
-- Übergabe an das Repository
-
 Der `history_service.py` kümmert sich dabei überwiegend um das Laden eines bestimmten Task. Ebenfalls entfernt der Service
 den Assigne somit besteht rückwirkend keine Referenz mehr auf private Daten.
 ```python
