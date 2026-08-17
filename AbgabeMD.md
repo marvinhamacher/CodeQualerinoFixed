@@ -3050,12 +3050,13 @@ def test_daily_report():
 
 ### 4.1.3 Prüfung ob man User löschen bzw. deaktivieren kann
 ```python
-from user_types import User
+from user import UserManager
 
 def test_user_can_be_deleted():
-    user = User(1, "Max", "max@test.de")
+    user_manager = UserManager()
+    user_manager.create_user(-1, Max Muster, maxmuster@gmail.com)
 
-    result = user.delete_account()
+    result = user_manager.deactivate_user(-1)
 
     assert result is True
 ```
