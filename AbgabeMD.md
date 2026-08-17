@@ -2345,62 +2345,13 @@ class Database:
 
 
 ```
-
-```
-HistoryService
-HistoryRepository
-```
-
 Der `HistoryService` übernimmt dabei die Geschäftslogik:
 
 - Laden der Aufgabe
 - Anonymisieren personenbezogener Daten
 - Übergabe an das Repository
 
-```python
-import json
-import os
-
-from logger import log, log_error
-from config import HISTORY_FILE
-
-
-class HistoryRepository:
-
-    def __init__(self):
-        self.history = {}
-
-        os.makedirs(os.path.dirname(HISTORY_FILE), exist_ok=True)
-
-        self.load()
-
-    def load(self):
-        if os.path.exists(HISTORY_FILE):
-            try:
-                with open(HISTORY_FILE, "r") as file:
-                    self.history = json.load(file)
-            except Exception:
-                log_error("failed while loading history.json")
-                self.history = {}
-
-    def save(self):
-        with open(HISTORY_FILE, "w") as file:
-            json.dump(self.history, file)
-
-        log("History saved")
-
-    def save_task(self, task):
-        self.history[str(task["id"])] = task
-        self.save()
-
-    def get_task(self, task_id):
-        return self.history.get(str(task_id))
-
-    def all_tasks(self):
-        return self.history
-```
-
-Der `history_service.py` kümmert sich überwiegend um das Laden eines bestimmten Task. Ebenfalls entfernt der Service
+Der `history_service.py` kümmert sich dabei überwiegend um das Laden eines bestimmten Task. Ebenfalls entfernt der Service
 den Assigne somit besteht rückwirkend keine Referenz mehr auf private Daten.
 ```python
 from copy import deepcopy
