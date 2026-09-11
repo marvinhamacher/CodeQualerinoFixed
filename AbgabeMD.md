@@ -1,6 +1,6 @@
 # Software Engineering Abgabe
 
-Erstellt von:
+Erstellt von: <br>
 Marvin Hamacher, 10236239 und Johann Shilinski, 10236539
 
 # 0. Inhaltsverzeichnis
