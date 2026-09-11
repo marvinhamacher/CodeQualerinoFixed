@@ -1,3 +1,8 @@
+# Software Engineering Abgabe
+
+## Erstellt von:
+Marvin Hamacher, 10236239 und Johann Shilinski, 10236539
+
 # 0. Inhaltsverzeichnis
 - [1 Verletzung von architektonischen Prinzipien](#1-verletzung-von-architektonischen-prinzipien)
   - [1.1 Verletzung SOLID, Testbarkeit, Architektur und Modellierung im Überblick](#11-verletzung-solid-testbarkeit-architektur-und-modellierung-im-überblick)
